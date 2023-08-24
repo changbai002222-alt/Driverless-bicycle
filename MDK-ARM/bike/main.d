@@ -49,3 +49,4 @@ bike\main.o: ../Inc/gpio.h
 bike\main.o: ../Inc/odrive.h
 bike\main.o: ../Inc/imu.h
 bike\main.o: ../Inc/servo.h
+bike\main.o: ../Inc/task.h

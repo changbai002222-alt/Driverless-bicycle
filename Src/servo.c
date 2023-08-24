@@ -1,7 +1,6 @@
 #include "servo.h"
 #define PWM_RESOLUTION 10000
 HAL_StatusTypeDef servo_status;
-int middle_duty = 1150;
 
 #define Servo_Center_Mid 1130                    //舵机直行中值
 #define Servo_Left_Max (Servo_Center_Mid + 250)  //舵机左转极限值
@@ -12,6 +11,7 @@ void servo_init(void)
 {
 	MX_TIM2_Init(); //PWM OUTPUT
 	servo_status = HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1); //PA0
+	servo_set_duty(0);
 }
 
 

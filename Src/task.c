@@ -7,9 +7,8 @@
 #define fly_wheel_rate_limit 55 //动量轮速度限幅
 //
 paramTypeDef param;
-enum bike_state b_s;
+enum bike_state b_s=BALANCE;
 extern imu_t imu;
-float blank = 0;
 float PWM_X,PWM_accel,PWM_Final;                  // PWM中间量
 int Flag_Stop = 1;
 
@@ -20,32 +19,46 @@ int Steer_Balance_Last = 0;//舵机平衡last值
 
 int cnt;//角度环计数
 int cnt1;//速度环计数
+int cnt_vel_callback;
+int cnt_vel_set;
+int cnt_balance;
 
 float Roll_Change = 0;//动态零点变化量
 float Pitch_Change_Last = 0;//上一次动态零点
-int cnt_vel_callback;
-int cnt_vel_set;
+
+int test_servo=0;//舵机打角debug测试
+int test_servo_flag=1;
+float test_rate=0;
 //定时器 2ms
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if(htim == &htim3)
 	{
 		imu_get();
-		
+		if(test_servo_flag==1)
+		{
+				servo_set_duty(test_servo);
+		}
 		// 这里有控制周期的 这样直接写不知道行不行啊  是不是得有cnt这种的 这个定时器周期和原来代码是一样的
 		// task
 		cnt_vel_set++;
-		if(cnt_vel_set == 50) // 100ms
+    cnt_balance++;	
+		//odrive_speed_ctrl(1,test_rate);
+		if(cnt_balance>=1	&& param.scope_flag == 1)
 		{
-			
-			odrive_speed_ctrl(0,0.5);
-			cnt_vel_callback++;
-			cnt_vel_set = 0;
-			if(cnt_vel_callback == 2) // 200ms
-			{
-				cnt_vel_callback = 0;
-				odrive_vel_callback();
-			}
+				balance();
+				cnt_balance=0;
+		}
+		if(cnt_vel_set == 1)//2msodrive_speed_ctrl(0,odrive.set_speed0);
+		{
+				
+				cnt_vel_callback++;
+				cnt_vel_set = 0;
+				if(cnt_vel_callback == 2) // 4ms
+				{
+						cnt_vel_callback = 0;
+						odrive_vel_callback();
+				}
 			
 		}
 		
@@ -57,7 +70,7 @@ void param_init(){
     param.angular_ki = 0;
     param.angular_kd = -5.8;
 	
-    param.angular_v_kp = -2.49;
+    param.angular_v_kp = -2.05;
     param.angular_v_ki = 0;
     param.angular_v_kd = -0.86;
 	
@@ -65,7 +78,7 @@ void param_init(){
     param.fly_wheel_speed_ki = 0;
     param.fly_wheel_speed_kd = 0;
 	
-    param.angular_zero = -1.65;
+    param.angular_zero = -1.55;
     param.fly_whell_speed_target = 0;
     param.scope_flag = 0;
     param.Steer_Kp = 1;//舵机kp
@@ -97,14 +110,13 @@ float Angle_Velocity(float Gyro,float Gyro_Target)
 float X_balance_Control(float Angle,float Angle_Zero,float gyro)
 {
      float PWM,Bias;
-     static float error,X_Balance_Last_Bias;
+     static float error;//,X_Balance_Last_Bias;
      Bias=Angle-Angle_Zero;                                            //获取偏差
      error+=Bias;                                                      //偏差累积
      if(error>+30) error=+30;                                          //积分限幅
      if(error<-30) error=-30;                                          //积分限幅
-     PWM=param.angular_kp*Bias + param.angular_ki*error + (Bias - X_Balance_Last_Bias)*param.angular_kd;   //获取最终数值
+    // PWM=param.angular_kp*Bias + param.angular_ki*error + (Bias - X_Balance_Last_Bias)*param.angular_kd;   //获取最终数值
      PWM=param.angular_kp*Bias + param.angular_ki*error + (gyro)*param.angular_kd;   //获取最终数值
-     X_Balance_Last_Bias = Bias;                                        //记录上次偏差
      return PWM;
 }
 //速度环pid
@@ -123,33 +135,30 @@ float Velocity_Control(int encoder,int target_encoder)
 }
 void balance(void)
 {
-   
-    imu_get();																																															 // 陀螺仪数据更新
     cnt++;																																																	 // 角度控制周期
     cnt1++;																																																	 // 速度控制周期
 
-		Roll_Change = Roll_Change_PD(Steer_Target,0);																													   // 动态零点变化量  
+		//Roll_Change = Roll_Change_PD(Steer_Target,0);																													 // 动态零点变化量  
 																																																						 // 动量轮控制，串级
-    if(cnt1>=50){PWM_accel = Velocity_Control(odrive.now_speed0 , param.fly_whell_speed_target);cnt1=0;}     // 动量轮电机速度环正反馈 速度左正右负
-    if(cnt>=5){PWM_X = X_balance_Control(imu.rol,param.angular_zero+PWM_accel+Roll_Change,imu.vx);cnt=0;}	   // 动量轮电机控制左右倾角param.angular_zero+  角度左负右正
+    if(cnt1>=60){PWM_accel = Velocity_Control(odrive.now_speed0 , param.fly_whell_speed_target);cnt1=0;}     // 动量轮电机速度环正反馈 速度左正右负
+    if(cnt>=15){PWM_X = X_balance_Control(imu.rol,param.angular_zero+PWM_accel+Roll_Change,imu.vx);cnt=0;}	 // 动量轮电机控制左右倾角param.angular_zero+  角度左负右正
     PWM_Final = Angle_Velocity(imu.vx,PWM_X);       																												 // 角速度环  角速度左负右正
-    odrive.set_speed0 = PWM_Final;																																					 // 速度设置左正右负    
+    odrive.set_speed0 = PWM_Final;																																					 // 速度设置左正右负     
 			  																																																		 // 动量轮限幅
     if(odrive.set_speed0>fly_wheel_rate_limit) odrive.set_speed0=fly_wheel_rate_limit;      								 // 动量轮电机限幅
     else if(odrive.set_speed0<-fly_wheel_rate_limit) odrive.set_speed0=-fly_wheel_rate_limit; 							 // 动量轮电机限幅
 		
-		odrive_speed_ctrl(0,odrive.set_speed0);
 		 
-    Steer_Balance = SBB_Get_BalancePID(imu.rol,imu.vx,param.angular_zero+PWM_accel+Roll_Change);             // 舵机平衡
-    Steer_Balance = Steer_Speed_Limit(Steer_Balance,Steer_Balance_Last,1,10); 															 // 舵机打角限速
-    Steer_Balance_Last = Steer_Balance;
+//    Steer_Balance = SBB_Get_BalancePID(imu.rol,imu.vx,param.angular_zero+PWM_accel+Roll_Change);             // 舵机平衡
+//    Steer_Balance = Steer_Speed_Limit(Steer_Balance,Steer_Balance_Last,1,10); 															 // 舵机打角限速
+//    Steer_Balance_Last = Steer_Balance;
 
-    Steer_Target = Steer_Speed_Limit(Steer_Target,Steer_Target_Last,1,1); 																 	 // 舵机打角限速31，防止打角太快，车摔倒
-    servo_set_duty(Steer_Target);																																						 // 舵机控制
-    Steer_Target_Last = Steer_Target;																																				 // 记录上次打角值
+//    Steer_Target = Steer_Speed_Limit(Steer_Target,Steer_Target_Last,1,1); 																 	 // 舵机打角限速31，防止打角太快，车摔倒
+//    servo_set_duty(Steer_Target);																																						 // 舵机控制
+//    Steer_Target_Last = Steer_Target;																																				 // 记录上次打角值
 
 																																																						 // 摔倒停车判,断
-    if(b_s != END && ((imu.rol-(param.angular_zero+Roll_Change))>4 || (imu.rol-(param.angular_zero+Roll_Change))<-4))  b_s = STOP;
+    if(b_s != END && ((imu.rol-(param.angular_zero+Roll_Change))>3 || (imu.rol-(param.angular_zero+Roll_Change))<-3))  b_s = STOP;
     if(b_s == BEGINE || b_s == STOP || b_s == END)  odrive.set_speed0 = 0;
     
 }

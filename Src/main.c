@@ -48,6 +48,7 @@
 #include "odrive.h"
 #include "imu.h"
 #include "servo.h"
+#include "task.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -106,6 +107,7 @@ int main(void)
 	servo_init();
 	odrive_init();
 	imu_init();
+	param_init();
 	LL_USART_EnableIT_RXNE(UART8);
 	HAL_TIM_Base_Start_IT(&htim3);
   /* USER CODE END 2 */
