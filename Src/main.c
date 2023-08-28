@@ -104,7 +104,7 @@ int main(void)
   MX_TIM3_Init();
   MX_UART8_Init();
   /* USER CODE BEGIN 2 */
-	servo_init();
+	//servo_init();
 	odrive_init();
 	imu_init();
 	param_init();

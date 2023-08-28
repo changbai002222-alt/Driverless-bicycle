@@ -27,8 +27,12 @@ float Roll_Change = 0;//动态零点变化量
 float Pitch_Change_Last = 0;//上一次动态零点
 
 int test_servo=0;//舵机打角debug测试
-int test_servo_flag=1;
+int test_servo_flag=0;
 float test_rate=0;
+
+int zero_test_cnt = 0;
+	float zero_delta = 0;
+void test_zero(void);
 //定时器 2ms
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
@@ -43,15 +47,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		// task
 		cnt_vel_set++;
     cnt_balance++;	
+		zero_test_cnt++;
 		//odrive_speed_ctrl(1,test_rate);
 		if(cnt_balance>=1	&& param.scope_flag == 1)
 		{
 				balance();
 				cnt_balance=0;
 		}
-		if(cnt_vel_set == 1)//2msodrive_speed_ctrl(0,odrive.set_speed0);
+		if(cnt_vel_set == 1)//2ms   
 		{
-				
+				odrive_speed_ctrl(0,odrive.set_speed0);
 				cnt_vel_callback++;
 				cnt_vel_set = 0;
 				if(cnt_vel_callback == 2) // 4ms
@@ -61,8 +66,63 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 				}
 			
 		}
+		if(zero_test_cnt >=	80)
+		{
+			test_zero();
+			zero_test_cnt = 0;
+		}
 		
 	}
+}
+
+
+void test_zero()
+{
+	static int time_flag = 0;
+	static int time_clear_delta = 0;
+	if(odrive.now_speed0>2)
+	{
+		if(time_flag < 0)
+			time_flag = 0;
+		time_flag ++;
+		if(time_flag >= 10)
+		{
+			zero_delta += odrive.now_speed0 * 0.0001f;
+			if(time_clear_delta < 0)
+				time_clear_delta = 0;
+			time_clear_delta ++;
+			if(time_clear_delta >= 2)
+			{
+				zero_delta = 0;
+				time_clear_delta = 0;
+			}
+				
+		}
+	}
+	else if(odrive.now_speed0<-2)
+	{
+		if(time_flag > 0)
+			time_flag = 0;
+		time_flag --;
+		if(time_flag <= -10)
+		{
+			zero_delta -= odrive.now_speed0 * 0.0001f;
+			if(time_clear_delta > 0)
+				time_clear_delta = 0;
+			time_clear_delta --;
+			if(time_clear_delta <= -2)
+			{
+				zero_delta = 0;
+				time_clear_delta = 0;
+			}
+		}
+	}
+	else
+	{
+		zero_delta = 0;
+		time_flag = 0;
+	}
+	param.angular_zero +=zero_delta;
 }
 //pid参数初始化
 void param_init(){
@@ -132,6 +192,20 @@ float Velocity_Control(int encoder,int target_encoder)
 			encoder_bias_integral = -200;                    //积分限幅是500
     Velocity = encoder_bias * param.fly_wheel_speed_kp/10 + encoder_bias_integral * param.fly_wheel_speed_ki/1000;
     return Velocity;
+}
+int Steer_Engine_control(float image_bias)
+{
+    int steer_out;
+    static float Last_image_bias;
+    static float bias_intergral;
+    bias_intergral += image_bias;
+    if (bias_intergral >= 50)
+        bias_intergral = 50;
+    if (bias_intergral <= -50)
+        bias_intergral = -50;
+    steer_out = param.Steer_Kp * image_bias + param.Steer_Ki * bias_intergral + param.Steer_Kd * (image_bias - Last_image_bias);
+    Last_image_bias = image_bias;
+    return steer_out;
 }
 void balance(void)
 {
@@ -270,6 +344,13 @@ int SBB_Get_BalancePID(float Angle,float Gyro,float Pitch_Calculate)
         SBB_BalancePID = -param.Balance_Kp * (-Bias*Bias) - param.Balance_Ki*Integration - param.Balance_Kd*Gyro;
     return SBB_BalancePID;
 
+}
+void odrive_limit()
+{
+	if(odrive.set_speed1>0&&my_fabs(odrive.now_speed1)<=0.1f)
+	{
+		odrive.set_speed1=0;
+	}
 }
 int my_abs(int x)
 {
