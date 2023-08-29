@@ -27,11 +27,15 @@ float Roll_Change = 0;//动态零点变化量
 float Pitch_Change_Last = 0;//上一次动态零点
 
 int test_servo=0;//舵机打角debug测试
-int test_servo_flag=0;
+int test_servo_flag=1;
 float test_rate=0;
 
 int zero_test_cnt = 0;
-	float zero_delta = 0;
+float zero_delta = 0;
+
+int demo_steer_target = 0;
+
+void test_zero_pid(void);
 void test_zero(void);
 //定时器 2ms
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
@@ -39,18 +43,23 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	if(htim == &htim3)
 	{
 		imu_get();
-		if(test_servo_flag==1)
-		{
-				servo_set_duty(test_servo);
-		}
+//		if(test_servo_flag==1)
+//		{
+//				servo_set_duty(test_servo);
+//		}
 		// 这里有控制周期的 这样直接写不知道行不行啊  是不是得有cnt这种的 这个定时器周期和原来代码是一样的
 		// task
 		cnt_vel_set++;
     cnt_balance++;	
 		zero_test_cnt++;
+		Steer_Target = demo_steer_target;
+		Steer_Target = Steer_Speed_Limit(Steer_Target,Steer_Target_Last,1,1); 																 	 // 舵机打角限速31，防止打角太快，车摔倒
+    servo_set_duty(Steer_Target);																																						 // 舵机控制
+    Steer_Target_Last = Steer_Target;																																				 // 记录上次打角值
 		//odrive_speed_ctrl(1,test_rate);
 		if(cnt_balance>=1	&& param.scope_flag == 1)
 		{
+			
 				balance();
 				cnt_balance=0;
 		}
@@ -66,16 +75,38 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 				}
 			
 		}
-		if(zero_test_cnt >=	80)
+		if(zero_test_cnt >=	50)
 		{
-			test_zero();
+			test_zero_pid();
 			zero_test_cnt = 0;
 		}
 		
 	}
 }
-
-
+float Zero_pid_Control(int encoder,int target_encoder)
+{
+    float encoder_bias,Velocity;
+    static float encoder_integral,error,last_error;
+    error=encoder_bias = encoder - target_encoder;
+    encoder_integral += encoder_bias;
+    if(encoder_integral > +0.001) 
+			encoder_integral = +0.001;                    //积分限幅
+    if(encoder_integral < -0.001) 
+			encoder_integral = -0.001;                    //积分限幅是500
+    Velocity = encoder_bias *param.zero_speed_kp/10 + encoder_integral * param.zero_speed_ki+param.zero_speed_kd*(error-last_error);
+		last_error=error;
+    return Velocity;
+}
+float zero_det;
+float rate;
+void test_zero_pid()
+{
+	
+	if(odrive.set_speed0>3)rate=odrive.set_speed0-3;
+	else if(odrive.set_speed0<-3)rate=odrive.set_speed0+3;
+	zero_det = Zero_pid_Control(rate , param.fly_whell_speed_target);
+	param.angular_zero += zero_det;
+}
 void test_zero()
 {
 	static int time_flag = 0;
@@ -130,7 +161,7 @@ void param_init(){
     param.angular_ki = 0;
     param.angular_kd = -5.8;
 	
-    param.angular_v_kp = -2.05;
+    param.angular_v_kp = -1.85;
     param.angular_v_ki = 0;
     param.angular_v_kd = -0.86;
 	
@@ -138,7 +169,12 @@ void param_init(){
     param.fly_wheel_speed_ki = 0;
     param.fly_wheel_speed_kd = 0;
 	
-    param.angular_zero = -1.55;
+	  param.zero_speed_kp=0.01;
+	  param.zero_speed_kd=0.0001;
+	  param.zero_speed_ki=0;
+	  
+	
+    param.angular_zero = -2;
     param.fly_whell_speed_target = 0;
     param.scope_flag = 0;
     param.Steer_Kp = 1;//舵机kp
@@ -227,9 +263,7 @@ void balance(void)
 //    Steer_Balance = Steer_Speed_Limit(Steer_Balance,Steer_Balance_Last,1,10); 															 // 舵机打角限速
 //    Steer_Balance_Last = Steer_Balance;
 
-//    Steer_Target = Steer_Speed_Limit(Steer_Target,Steer_Target_Last,1,1); 																 	 // 舵机打角限速31，防止打角太快，车摔倒
-//    servo_set_duty(Steer_Target);																																						 // 舵机控制
-//    Steer_Target_Last = Steer_Target;																																				 // 记录上次打角值
+    
 
 																																																						 // 摔倒停车判,断
     if(b_s != END && ((imu.rol-(param.angular_zero+Roll_Change))>3 || (imu.rol-(param.angular_zero+Roll_Change))<-3))  b_s = STOP;

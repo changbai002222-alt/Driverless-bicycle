@@ -104,12 +104,15 @@ int main(void)
   MX_TIM3_Init();
   MX_UART8_Init();
   /* USER CODE BEGIN 2 */
-	//servo_init();
+	
 	odrive_init();
+	
 	imu_init();
 	param_init();
 	LL_USART_EnableIT_RXNE(UART8);
+	servo_init();
 	HAL_TIM_Base_Start_IT(&htim3);
+	
   /* USER CODE END 2 */
 	
   /* Infinite loop */

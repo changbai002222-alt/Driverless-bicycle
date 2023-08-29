@@ -18,6 +18,10 @@ typedef struct
     float fly_wheel_speed_kp;
     float fly_wheel_speed_ki;
     float fly_wheel_speed_kd;
+	  //零点速度环
+	  float zero_speed_kp;
+    float zero_speed_ki;
+    float zero_speed_kd;
 	
     float angular_zero;             //角度零点
     float angular_target;           //目标角度
