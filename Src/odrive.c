@@ -1,8 +1,6 @@
 #include "odrive.h"
 #include "can.h"
 OdirveTypeDef odrive;
-HAL_StatusTypeDef status1;
-HAL_StatusTypeDef status2;
 // can2  250 kbps  250000
 void odrive_init(void)
 {
@@ -61,19 +59,20 @@ void odrive_speed_ctrl(unsigned char num, float speed)
 	data[6] = 0;
 	data[7] = 0;
 	uint32_t ret;
-	status1 = HAL_CAN_AddTxMessage(&hcan2, &header, data, &ret);
+	HAL_CAN_AddTxMessage(&hcan2, &header, data, &ret);
 }
-void odrive_vel_callback(void)
+// 0为飞轮 1为后轮
+void odrive_vel_callback(unsigned char num)
 {
 	CAN_TxHeaderTypeDef header;
 	uint8_t data[8];
 	header.RTR = CAN_RTR_REMOTE;
 	header.IDE = CAN_ID_STD;
 	header.DLC = 0;
-	header.StdId = ((AXIS0_CAN_NODE_ID << 5) | MSG_GET_ENCODER_ESTIMATES);
+	header.StdId = ((NODE_ID(num) << 5) | MSG_GET_ENCODER_ESTIMATES);
 	header.ExtId = 0;
 	uint32_t ret;
-	status2 = HAL_CAN_AddTxMessage(&hcan2, &header, data, &ret);
+	HAL_CAN_AddTxMessage(&hcan2, &header, data, &ret);
 }
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
@@ -82,19 +81,24 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	if(hcan==&hcan2)
 	{
 		HAL_CAN_GetRxMessage(&hcan2,  CAN_RX_FIFO0, &header, buf);
-		if((header.StdId >> 5) == AXIS0_CAN_NODE_ID) // 可以删除，只对飞轮做闭环
+		switch (header.StdId & 0x1F)
 		{
-			switch (header.StdId & 0x1F)
-			{
-				case (MSG_GET_ENCODER_ESTIMATES):
+			case (MSG_GET_ENCODER_ESTIMATES):
+				if((header.StdId >> 5) == AXIS0_CAN_NODE_ID)
+				{
 					odrive.speed0_i = (++odrive.speed0_i) % 3;
 					odrive.fliter_speed0[odrive.speed0_i] = *(float *)(buf + 4);
 					odrive.now_speed0 = (odrive.fliter_speed0[0]+odrive.fliter_speed0[1]+odrive.fliter_speed0[2])/3;
-					break;
-				default:
+				}
+				else if((header.StdId >> 5) == AXIS1_CAN_NODE_ID)
+				{
+					odrive.speed1_i = (++odrive.speed1_i) % 3;
+					odrive.fliter_speed1[odrive.speed1_i] = *(float *)(buf + 4);
+					odrive.now_speed1 = (odrive.fliter_speed1[0]+odrive.fliter_speed1[1]+odrive.fliter_speed1[2])/3;	
+				}
 				break;
-			}
-			
+			default:
+				break;
 		}
 		
 	}

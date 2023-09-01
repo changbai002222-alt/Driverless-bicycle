@@ -51,7 +51,7 @@ typedef struct
 extern OdirveTypeDef odrive;
 void odrive_canFilter_init(void);
 void odrive_init(void);
-void odrive_vel_callback(void);
+void odrive_vel_callback(unsigned char num);
 void odrive_speed_ctrl(unsigned char num, float speed);
 #endif
 

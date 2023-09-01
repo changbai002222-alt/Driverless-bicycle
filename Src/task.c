@@ -65,7 +65,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 				if(cnt_vel_callback == 2) // 4ms
 				{
 						cnt_vel_callback = 0;
-						odrive_vel_callback();
+						odrive_vel_callback(0);
 				}
 			
 		}
