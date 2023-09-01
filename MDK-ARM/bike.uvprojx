@@ -440,11 +440,6 @@
               <FilePath>..\Src\odrive.c</FilePath>
             </File>
             <File>
-              <FileName>can.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>../Src/can.c</FilePath>
-            </File>
-            <File>
               <FileName>task.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Src\task.c</FilePath>
@@ -509,6 +504,16 @@
               <FileName>servo.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Src\servo.c</FilePath>
+            </File>
+            <File>
+              <FileName>can.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Src/can.c</FilePath>
+            </File>
+            <File>
+              <FileName>upper.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\upper.c</FilePath>
             </File>
           </Files>
         </Group>

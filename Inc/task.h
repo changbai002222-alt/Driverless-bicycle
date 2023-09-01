@@ -40,7 +40,8 @@ int my_abs(int x);
 float my_fabs(float x);
 int SBB_Get_BalancePID(float Angle,float Gyro,float Pitch_Calculate);
 int Steer_Engine_control(float image_bias);
-float Roll_Change_PD(int steer_angle,int flag);
+void test_zero_pid(void);
+void test_zero(void);
 void param_init(void);
 void balance(void);
 #endif

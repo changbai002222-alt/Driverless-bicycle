@@ -50,3 +50,4 @@ bike\main.o: ../Inc/odrive.h
 bike\main.o: ../Inc/imu.h
 bike\main.o: ../Inc/servo.h
 bike\main.o: ../Inc/task.h
+bike\main.o: ../Inc/upper.h

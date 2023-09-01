@@ -14,7 +14,6 @@ void servo_init(void)
 	//servo_set_duty(0);
 }
 
-
 void servo_set_duty(int duty)
 {
     int target = Servo_Center_Mid + duty;

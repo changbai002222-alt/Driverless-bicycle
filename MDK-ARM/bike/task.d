@@ -47,3 +47,4 @@ bike\task.o: ../Inc/tim.h
 bike\task.o: ../Inc/imu.h
 bike\task.o: ../Inc/odrive.h
 bike\task.o: ../Inc/servo.h
+bike\task.o: ../Inc/upper.h
