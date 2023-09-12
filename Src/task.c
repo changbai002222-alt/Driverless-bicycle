@@ -4,6 +4,7 @@
 #include "odrive.h"
 #include "servo.h"
 #include "upper.h"
+#include "math.h"
 #define fly_wheel_rate_limit 55 //动量轮速度限幅
 //
 paramTypeDef param;
@@ -28,7 +29,7 @@ int cnt_zero;
 float zero_det;
 float rate;
 float test_rate=0;//后轮驱动速度测试
-
+float Set_steer;
 
 //定时器 2ms
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
@@ -42,10 +43,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		cnt_zero++;
 		cnt_servo++;
 																																			 
-		if(cnt_servo>=10)//舵机控制周期 20ms
+		if(cnt_servo>=5)//舵机控制周期 20ms
 		{
 			
-			Steer_Target = Steer_Engine_control(delta_x_buf);	//舵机打角pid
+			Steer_Target = Set_steer=Steer_Engine_control(delta_x_buf);	//舵机打角pid
 			Steer_Target = Steer_Speed_Limit(Steer_Target,Steer_Target_Last,1,1); 																 	 // 舵机打角限速31，防止打角太快，车摔倒
 			servo_set_duty(Steer_Target);																																						 // 舵机控制
 			Steer_Target_Last = Steer_Target;	
@@ -69,25 +70,28 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 				}
 			
 		}
-		if(cnt_zero >=	50) //零点变化周期 100ms
+		if(cnt_zero >=	200) //零点变化周期 400ms
 		{
+			
+
 			test_zero_pid();
 			cnt_zero = 0;
 		}
 		
 	}
 }
+//并级pid之飞轮速度环
 float Zero_pid_Control(int encoder,int target_encoder)
 {
     float encoder_bias,Velocity;
     static float encoder_integral,error,last_error;
     error=encoder_bias = encoder - target_encoder;
     encoder_integral += encoder_bias;
-    if(encoder_integral > +0.001) 
-			encoder_integral = +0.001;                    //积分限幅
-    if(encoder_integral < -0.001) 
-			encoder_integral = -0.001;                    //积分限幅是500
-    Velocity = encoder_bias *param.zero_speed_kp/10 + encoder_integral * param.zero_speed_ki+param.zero_speed_kd*(error-last_error);
+    if(encoder_integral > +0.01) 
+			encoder_integral = +0.01;                    //积分限幅
+    if(encoder_integral < -0.01) 
+			encoder_integral = -0.01;                    //积分限幅是500
+    Velocity = encoder_bias *(param.zero_speed_kp/10 )+ encoder_integral * param.zero_speed_ki+param.zero_speed_kd*(error-last_error);
 		last_error=error;
     return Velocity;
 }
@@ -95,18 +99,44 @@ float Zero_pid_Control(int encoder,int target_encoder)
 void test_zero_pid()
 {
 	
-	if(odrive.set_speed0>3)rate=odrive.set_speed0-3;
-	else if(odrive.set_speed0<-3)rate=odrive.set_speed0+3;
+	if(odrive.set_speed0>2)rate=odrive.set_speed0-2;
+	else if(odrive.set_speed0<-2)rate=odrive.set_speed0+2;
 	zero_det = Zero_pid_Control(rate,param.fly_whell_speed_target);
 	param.angular_zero += zero_det;
 }
+
+////开环舵机
+//float start_yaw,now_d_angle;
+//float x,y;
+//void test_open_loop(float distance,float d_angle)
+//{
+
+//	static int state;
+//	switch(state)
+//	{
+//		case 0:
+//		{
+//			start_yaw=imu.yaw;	
+//			x=distance*sinf(d_angle);
+//			y=distance*cosf(d_angle);
+//			state=1;
+//			break;
+//		}
+//		case 1:
+//		{
+//			now_d_angle=imu.yaw-start_yaw;
+//			
+//		}
+//	}
+//	
+//}
 //pid参数初始化
 void param_init(){
     param.angular_kp = -10.45;//并级 -32.05 0 -6.205       12 5 0
     param.angular_ki = 0;
     param.angular_kd = -5.8;
 	
-    param.angular_v_kp = -1.85;
+    param.angular_v_kp = -2;
     param.angular_v_ki = 0;
     param.angular_v_kd = -0.86;
 	
@@ -114,10 +144,17 @@ void param_init(){
     param.fly_wheel_speed_ki = 0;
     param.fly_wheel_speed_kd = 0;
 	
-	  param.zero_speed_kp=0.01;
-	  param.zero_speed_kd=0.0001;
+	  param.zero_speed_kp=0.025;
+	  param.zero_speed_kd=0.001;
 	  param.zero_speed_ki=0;
 	  
+		param.zero_steer_kp=0;
+		param.zero_steer_ki=0;
+	  param.zero_steer_kd=0;
+	
+		param.zero_accl_kp=0;
+		param.zero_accl_ki=0;
+		param.zero_accl_kd=0;
 	
     param.angular_zero = -2;
     param.fly_whell_speed_target = 0;
@@ -174,6 +211,7 @@ float Velocity_Control(int encoder,int target_encoder)
     Velocity = encoder_bias * param.fly_wheel_speed_kp/10 + encoder_bias_integral * param.fly_wheel_speed_ki/1000;
     return Velocity;
 }
+//舵机pid
 int Steer_Engine_control(float image_bias)
 {
     int steer_out;
@@ -225,13 +263,7 @@ void balance(void)
 //    return SBB_BalancePID;
 
 //}
-void odrive_limit()
-{
-	if(odrive.set_speed1>0&&my_fabs(odrive.now_speed1)<=0.1f)
-	{
-		odrive.set_speed1=0;
-	}
-}
+
 int my_abs(int x)
 {
 	  float m;

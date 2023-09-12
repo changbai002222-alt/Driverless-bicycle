@@ -75,7 +75,10 @@ void SystemClock_Config(void);
   * @brief  The application entry point.
   *
   * @retval None
-  */
+*/
+  
+	uint8_t buf1[4]={0xA5,0x00,0x01,0x02};
+	
 int main(void)
 {
   /* USER CODE BEGIN 1 */
@@ -85,6 +88,7 @@ int main(void)
   /* MCU Configuration----------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+	
   HAL_Init();
 
   /* USER CODE BEGIN Init */
@@ -100,10 +104,10 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_USART2_UART_Init();
   MX_CAN2_Init();
   MX_TIM3_Init();
   MX_UART8_Init();
+	MX_UART7_Init();
   /* USER CODE BEGIN 2 */
 	
 	odrive_init();
@@ -111,9 +115,10 @@ int main(void)
 	imu_init();
 	param_init();
 	LL_USART_EnableIT_RXNE(UART8);
+	LL_USART_EnableIT_RXNE(UART7);
 	servo_init();
 	HAL_TIM_Base_Start_IT(&htim3);
-	HAL_UART_Receive_IT(&huart2,(uint8_t*)buf,1);
+	//HAL_UART_Receive_IT(&huart2,(uint8_t*)buf,1);
   /* USER CODE END 2 */
 	
   /* Infinite loop */
@@ -122,7 +127,7 @@ int main(void)
   {
 
   /* USER CODE END WHILE */
-	
+ upper_send_data(buf1, 4);
 		HAL_Delay(100);
 	
   /* USER CODE BEGIN 3 */
