@@ -6,12 +6,10 @@
 #include "upper.h"
 #include "math.h"
 #define fly_wheel_rate_limit 55 //动量轮速度限幅
-//
 paramTypeDef param;
 enum bike_state b_s=BALANCE;
 extern imu_t imu;
-float PWM_X,PWM_accel,PWM_Final;                  // PWM中间量
-int Flag_Stop = 1;
+float PWM_X,PWM_accel,PWM_Final;// PWM中间量
 
 int Steer_Target=0;//舵机pid计算目标值
 int Steer_Target_Last=0;//舵机last值
@@ -20,17 +18,18 @@ int Steer_Balance_Last = 0;//舵机平衡last值
 
 int cnt;//角度环计数
 int cnt1;//速度环计数
-int cnt_vel_callback;
-int cnt_vel_set;
-int cnt_balance;
-int cnt_servo;
-int cnt_zero;
+int cnt_vel_callback1;//飞轮速度反馈计数
+int cnt_vel_set1;//飞轮速度发送计数
+int cnt_balance;//自行车平衡控制周期计数
+int cnt_servo;//舵机控制周期计数
+int cnt_zero;//动态零点调整周期计数
+int cnt_vel_set2;//后驱速度发送计数
+int cnt_vel_callback2;//后驱速度反馈计数
 
-float zero_det;
-float rate;
-float test_rate=0;//后轮驱动速度测试
-float Set_steer;
-
+float zero_det;//动态零点变化量
+float rate;//死区外飞轮速度
+float Set_steer;//舵机pid目标打角（PWM）
+int can_flag=0;
 //定时器 2ms
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
@@ -38,16 +37,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	{
 		imu_get();//陀螺仪读取
 		
-		cnt_vel_set++;
+		cnt_vel_set1++;
+
     cnt_balance++;	
 		cnt_zero++;
 		cnt_servo++;
 																																			 
-		if(cnt_servo>=5)//舵机控制周期 20ms
+		if(cnt_servo>=5)//舵机控制周期 10ms
 		{
 			
 			Steer_Target = Set_steer=Steer_Engine_control(delta_x_buf);	//舵机打角pid
-			Steer_Target = Steer_Speed_Limit(Steer_Target,Steer_Target_Last,1,1); 																 	 // 舵机打角限速31，防止打角太快，车摔倒
+			Steer_Target = Steer_Speed_Limit(Steer_Target,Steer_Target_Last,1,15); 																 	 // 舵机打角限速31，防止打角太快，车摔倒
 			servo_set_duty(Steer_Target);																																						 // 舵机控制
 			Steer_Target_Last = Steer_Target;	
 			cnt_servo=0;
@@ -58,24 +58,26 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 				balance();
 				cnt_balance=0;
 		}
-		if(cnt_vel_set == 1)//odrive can通信周期 2ms   
+		if(cnt_vel_set1 >= 1)//odrive can通信周期 2ms   
 		{
 				odrive_speed_ctrl(0,odrive.set_speed0);
-				cnt_vel_callback++;
-				cnt_vel_set = 0;
-				if(cnt_vel_callback == 2) // 4ms
+				cnt_vel_callback1++;
+			
+				cnt_vel_set1 = 0;
+				if(cnt_vel_callback1 == 2) 
 				{
-						cnt_vel_callback = 0;
+						cnt_vel_callback1 = 0;
+						cnt_vel_set2++;
 						odrive_vel_callback(0);
+				  	odrive_vel_callback(1);
 				}
 			
 		}
 		if(cnt_zero >=	200) //零点变化周期 400ms
-		{
-			
-
+		{		
 			test_zero_pid();
 			cnt_zero = 0;
+			upper_send(Steer_Target);
 		}
 		
 	}
@@ -83,15 +85,24 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 //并级pid之飞轮速度环
 float Zero_pid_Control(int encoder,int target_encoder)
 {
+	float k0;
+	{
+		//分段pid的p参数
+		if(my_abs(Steer_Target)<=10)k0=1;
+		else if(my_abs(Steer_Target)>10&&my_abs(Steer_Target)<=50)k0=8;
+		else if(my_abs(Steer_Target)>50&&my_abs(Steer_Target)<=100)k0=16;
+		else if(my_abs(Steer_Target)>100&&my_abs(Steer_Target)<=150)k0=20;
+		else if(my_abs(Steer_Target)>150) k0=24;
+	}
     float encoder_bias,Velocity;
     static float encoder_integral,error,last_error;
     error=encoder_bias = encoder - target_encoder;
     encoder_integral += encoder_bias;
     if(encoder_integral > +0.01) 
-			encoder_integral = +0.01;                    //积分限幅
+			encoder_integral = +0.01;                 
     if(encoder_integral < -0.01) 
-			encoder_integral = -0.01;                    //积分限幅是500
-    Velocity = encoder_bias *(param.zero_speed_kp/10 )+ encoder_integral * param.zero_speed_ki+param.zero_speed_kd*(error-last_error);
+			encoder_integral = -0.01;                 
+    Velocity = encoder_bias *k0*(param.zero_speed_kp/10 )+ encoder_integral * param.zero_speed_ki+param.zero_speed_kd*(error-last_error);
 		last_error=error;
     return Velocity;
 }
@@ -105,34 +116,9 @@ void test_zero_pid()
 	param.angular_zero += zero_det;
 }
 
-////开环舵机
-//float start_yaw,now_d_angle;
-//float x,y;
-//void test_open_loop(float distance,float d_angle)
-//{
-
-//	static int state;
-//	switch(state)
-//	{
-//		case 0:
-//		{
-//			start_yaw=imu.yaw;	
-//			x=distance*sinf(d_angle);
-//			y=distance*cosf(d_angle);
-//			state=1;
-//			break;
-//		}
-//		case 1:
-//		{
-//			now_d_angle=imu.yaw-start_yaw;
-//			
-//		}
-//	}
-//	
-//}
 //pid参数初始化
 void param_init(){
-    param.angular_kp = -10.45;//并级 -32.05 0 -6.205       12 5 0
+    param.angular_kp = -10.45;
     param.angular_ki = 0;
     param.angular_kd = -5.8;
 	
@@ -144,7 +130,7 @@ void param_init(){
     param.fly_wheel_speed_ki = 0;
     param.fly_wheel_speed_kd = 0;
 	
-	  param.zero_speed_kp=0.025;
+	  param.zero_speed_kp=0.0015;
 	  param.zero_speed_kd=0.001;
 	  param.zero_speed_ki=0;
 	  
@@ -157,11 +143,13 @@ void param_init(){
 		param.zero_accl_kd=0;
 	
     param.angular_zero = -2;
+		
     param.fly_whell_speed_target = 0;
     param.scope_flag = 0;
-    param.Steer_Kp = 2;//舵机kp
-    param.Steer_Ki = 0.001;//舵机kp
-    param.Steer_Kd = 0;//舵机kd
+		
+    param.Steer_Kp = 2;
+    param.Steer_Ki = 0.001;
+    param.Steer_Kd = 0;
 		//暂时没用的舵机平衡pid
     param.Balance_Kp = 0;
     param.Balance_Ki = 0;
@@ -242,27 +230,9 @@ void balance(void)
 		
 																																																						 // 摔倒停车判,断
     if(b_s != END && ((imu.rol-(param.angular_zero))>3 || (imu.rol-(param.angular_zero))<-3))  b_s = STOP;
-    if(b_s == BEGINE || b_s == STOP || b_s == END)  odrive.set_speed0 = 0;
+    if(b_s == BEGINE || b_s == STOP || b_s == END)  {odrive.set_speed1= odrive.set_speed0 = 0;}
     
 }
-
-//int SBB_Get_BalancePID(float Angle,float Gyro,float Pitch_Calculate)
-//{
-//    float  Bias;
-//    static float Integration=0;
-//    int SBB_BalancePID;
-//    Bias = Angle - Pitch_Calculate;     // 求出平衡的角度中值和此时横滚角的偏差
-//    Integration += Bias;           // 积分
-//    if(Integration<-380)      Integration=-380; //限幅
-//    else if(Integration>380)  Integration= 380; //限幅
-//    //===计算平衡控制的舵机PWM  PID控制 kp是P系数 ki式I系数 kd是D系数
-//    if(Bias>=0)
-//        SBB_BalancePID = -param.Balance_Kp * (Bias*Bias) - param.Balance_Ki*Integration - param.Balance_Kd*Gyro;
-//    else
-//        SBB_BalancePID = -param.Balance_Kp * (-Bias*Bias) - param.Balance_Ki*Integration - param.Balance_Kd*Gyro;
-//    return SBB_BalancePID;
-
-//}
 
 int my_abs(int x)
 {

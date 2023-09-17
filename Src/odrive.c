@@ -2,6 +2,7 @@
 #include "can.h"
 OdirveTypeDef odrive;
 // can2  250 kbps  250000
+
 void odrive_init(void)
 {
     odrive.set_speed0 = 0;
@@ -21,7 +22,6 @@ void odrive_init(void)
 void odrive_canFilter_init(void)
 {
 
-	
 	  CAN_FilterTypeDef filter;
     filter.FilterActivation = ENABLE;
     filter.FilterBank = 0;

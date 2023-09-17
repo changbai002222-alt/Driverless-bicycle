@@ -208,12 +208,12 @@
         <Ww>
           <count>10</count>
           <WinNumber>1</WinNumber>
-          <ItemText>zero_det</ItemText>
+          <ItemText>odrive.set_speed0</ItemText>
         </Ww>
         <Ww>
           <count>11</count>
           <WinNumber>1</WinNumber>
-          <ItemText>test_servo,0x0A</ItemText>
+          <ItemText>odrive.set_speed1</ItemText>
         </Ww>
         <Ww>
           <count>12</count>
@@ -254,6 +254,31 @@
           <count>19</count>
           <WinNumber>1</WinNumber>
           <ItemText>buf2</ItemText>
+        </Ww>
+        <Ww>
+          <count>20</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>status1</ItemText>
+        </Ww>
+        <Ww>
+          <count>21</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>status2</ItemText>
+        </Ww>
+        <Ww>
+          <count>22</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>can_flag,0x0A</ItemText>
+        </Ww>
+        <Ww>
+          <count>23</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>cnt_vel_set2</ItemText>
+        </Ww>
+        <Ww>
+          <count>24</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>cnt_vel_set1</ItemText>
         </Ww>
       </WatchWindow1>
       <Tracepoint>

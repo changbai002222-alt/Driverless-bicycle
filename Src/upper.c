@@ -1,7 +1,7 @@
 #include "upper.h"
 #include "usart.h"
 #define FHead 0xA5
-int16_t delta_x_buf;
+int16_t delta_x_buf;//Í¼Ïñ·µ»ØÖµ
 uint8_t buf[1];
 uint8_t buf_temp[1];
 uint8_t state;
@@ -14,7 +14,7 @@ void UART7_IRQHandler(void)
 	{
 		buf[0]=LL_USART_ReceiveData8(UART7);
 		
-	buf2[ii++] = buf[0];
+	  buf2[ii++] = buf[0];
 		if (ii == 4)
 			ii=0;
 	 switch(state)
@@ -61,4 +61,13 @@ void upper_send_data(uint8_t *buf,int len)
 	}
 	
 }
-
+void upper_send(int steer)
+{
+	uint8_t buf[4];
+	buf[0]=0xa5;
+	buf[1]=0x00;
+	buf[2]=(steer>>8)&0xFF;
+	buf[3]=steer&0xFF;
+	upper_send_data(buf,4);
+	
+}

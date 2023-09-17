@@ -3,7 +3,7 @@
 
 #define AXIS0_CAN_NODE_ID (0x010) // 飞轮
 
-#define AXIS1_CAN_NODE_ID (0x001)
+#define AXIS1_CAN_NODE_ID (0x018)
 
 #define NODE_ID(num) ((num) == 0 ? AXIS0_CAN_NODE_ID : AXIS1_CAN_NODE_ID)
 typedef enum

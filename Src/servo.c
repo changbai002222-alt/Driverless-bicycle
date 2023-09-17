@@ -37,7 +37,7 @@ int Steer_Speed_Limit(int now, int last, int limit, int times)
 {
     static int cnt = 0;
     cnt++;
-    if (cnt >= 25)
+    if (cnt >= times)
     {
         cnt = 0;
         if ((now - last) >= limit)

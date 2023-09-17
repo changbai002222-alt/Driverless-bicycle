@@ -77,7 +77,6 @@ void SystemClock_Config(void);
   * @retval None
 */
   
-	uint8_t buf1[4]={0xA5,0x00,0x01,0x02};
 	
 int main(void)
 {
@@ -127,9 +126,9 @@ int main(void)
   {
 
   /* USER CODE END WHILE */
- upper_send_data(buf1, 4);
+// upper_send_data(buf1, 4);
 		HAL_Delay(100);
-	
+		odrive_speed_ctrl(1,odrive.set_speed1);
   /* USER CODE BEGIN 3 */
 
   }
