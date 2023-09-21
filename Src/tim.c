@@ -39,13 +39,43 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "tim.h"
-
+#include "servo.h"
 /* USER CODE BEGIN 0 */
 TIM_HandleTypeDef htim2;
-#include "servo.h"
+TIM_HandleTypeDef htim4;
 /* USER CODE END 0 */
 
 TIM_HandleTypeDef htim3;
+
+void MX_TIM4_Init(void)
+{
+  TIM_ClockConfigTypeDef sClockSourceConfig;
+  TIM_MasterConfigTypeDef sMasterConfig;
+
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 840-1;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 1000-1;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+}
 
 /* TIM3 init function */
 void MX_TIM3_Init(void)
@@ -57,7 +87,7 @@ void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 840-1;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 200-1;
+  htim3.Init.Period = 200-1; // 200-1
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
   {
@@ -104,6 +134,22 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* tim_baseHandle)
 	/*Snow HAL_NVIC_SetPriority(TIM3_IRQn, 1, 3);*/
   /* USER CODE END TIM3_MspInit 1 */
 	}
+	else if(tim_baseHandle->Instance==TIM4)
+  {
+  /* USER CODE BEGIN TIM4_MspInit 0 */
+
+  /* USER CODE END TIM4_MspInit 0 */
+    /* TIM4 clock enable */
+    __HAL_RCC_TIM4_CLK_ENABLE();
+
+    /* TIM4 interrupt Init */
+    HAL_NVIC_SetPriority(TIM4_IRQn, 1, 4);
+    HAL_NVIC_EnableIRQ(TIM4_IRQn);
+  /* USER CODE BEGIN TIM4_MspInit 1 */
+
+  /* USER CODE END TIM4_MspInit 1 */
+  }
+
 }
 
 void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* tim_baseHandle)
@@ -123,6 +169,12 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* tim_baseHandle)
 
   /* USER CODE END TIM3_MspDeInit 1 */
   }
+	else if(tim_baseHandle->Instance==TIM5)
+	{
+		__HAL_RCC_TIM5_CLK_DISABLE();
+
+    HAL_NVIC_DisableIRQ(TIM5_IRQn);
+	}
 }
 
 /* USER CODE BEGIN 1 */

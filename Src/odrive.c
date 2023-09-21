@@ -2,7 +2,8 @@
 #include "can.h"
 OdirveTypeDef odrive;
 // can2  250 kbps  250000
-
+HAL_StatusTypeDef status1;
+HAL_StatusTypeDef status2;
 void odrive_init(void)
 {
     odrive.set_speed0 = 0;
@@ -59,7 +60,7 @@ void odrive_speed_ctrl(unsigned char num, float speed)
 	data[6] = 0;
 	data[7] = 0;
 	uint32_t ret;
-	HAL_CAN_AddTxMessage(&hcan2, &header, data, &ret);
+	status1 = HAL_CAN_AddTxMessage(&hcan2, &header, data, &ret);
 }
 // 0为飞轮 1为后轮
 void odrive_vel_callback(unsigned char num)
@@ -72,7 +73,7 @@ void odrive_vel_callback(unsigned char num)
 	header.StdId = ((NODE_ID(num) << 5) | MSG_GET_ENCODER_ESTIMATES);
 	header.ExtId = 0;
 	uint32_t ret;
-	HAL_CAN_AddTxMessage(&hcan2, &header, data, &ret);
+	status2 = HAL_CAN_AddTxMessage(&hcan2, &header, data, &ret);
 }
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {

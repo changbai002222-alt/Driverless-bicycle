@@ -4,7 +4,8 @@
 #include "main.h"
 extern uint8_t buf[1];
 extern int16_t delta_x_buf;
-void upper_send(int steer);
-void upper_send_data(uint8_t *buf,int len);
+void upper_send(int steer,int mode);
+extern int in_flag;
+void back_center_send(void);
 #endif
 

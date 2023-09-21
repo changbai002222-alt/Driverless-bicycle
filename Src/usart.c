@@ -45,6 +45,8 @@
 /* USER CODE BEGIN 0 */
 /*Snow  NVIC_SetPriority(UART8_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(),1, 1));*/
 /* USER CODE END 0 */
+
+
 /* UART7 init function */
 void MX_UART7_Init(void)
 {

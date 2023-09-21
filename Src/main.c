@@ -41,6 +41,7 @@
 #include "stm32f4xx_hal.h"
 #include "can.h"
 #include "tim.h"
+
 #include "usart.h"
 #include "gpio.h"
 
@@ -77,7 +78,6 @@ void SystemClock_Config(void);
   * @retval None
 */
   
-	
 int main(void)
 {
   /* USER CODE BEGIN 1 */
@@ -105,6 +105,7 @@ int main(void)
   MX_GPIO_Init();
   MX_CAN2_Init();
   MX_TIM3_Init();
+	MX_TIM4_Init();
   MX_UART8_Init();
 	MX_UART7_Init();
   /* USER CODE BEGIN 2 */
@@ -117,6 +118,7 @@ int main(void)
 	LL_USART_EnableIT_RXNE(UART7);
 	servo_init();
 	HAL_TIM_Base_Start_IT(&htim3);
+	HAL_TIM_Base_Start_IT(&htim4);
 	//HAL_UART_Receive_IT(&huart2,(uint8_t*)buf,1);
   /* USER CODE END 2 */
 	
@@ -127,8 +129,11 @@ int main(void)
 
   /* USER CODE END WHILE */
 // upper_send_data(buf1, 4);
+
 		HAL_Delay(100);
-		odrive_speed_ctrl(1,odrive.set_speed1);
+		
+		// odrive_speed_ctrl(1,odrive.set_speed1);
+		//odrive_speed_ctrl(0,1);
   /* USER CODE BEGIN 3 */
 
   }

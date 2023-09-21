@@ -5,7 +5,7 @@ HAL_StatusTypeDef servo_status;
 #define Servo_Center_Mid 780                    //舵机直行中值
 #define Servo_Left_Max (Servo_Center_Mid + 200)  //舵机左转极限值
 #define Servo_Right_Min (Servo_Center_Mid - 200) //舵机右转极限值
-static void set_pwm_duty(float duty);
+inline static void set_pwm_duty(float duty);
 
 void servo_init(void)
 {
@@ -23,7 +23,7 @@ void servo_set_duty(int duty)
     set_pwm_duty(res);
 }
 
-static void set_pwm_duty(float duty){
+inline static void set_pwm_duty(float duty){
 	duty > 1 ? duty = PWM_RESOLUTION : duty;
 	duty < 0 ? duty = 0 : duty;
 //	__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,duty);

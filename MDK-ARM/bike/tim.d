@@ -1,4 +1,4 @@
-bike\tim.o: ../Src/tim.c
+bike\tim.o: ..\Src\tim.c
 bike\tim.o: ../Inc/tim.h
 bike\tim.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h
 bike\tim.o: ../Inc/stm32f4xx_hal_conf.h

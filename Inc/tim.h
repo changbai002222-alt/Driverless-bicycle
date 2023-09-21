@@ -52,7 +52,8 @@
 /* USER CODE END Includes */
 
 extern TIM_HandleTypeDef htim3;
-
+extern TIM_HandleTypeDef htim2;
+extern TIM_HandleTypeDef htim4;
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */
@@ -60,10 +61,10 @@ extern TIM_HandleTypeDef htim3;
 extern void _Error_Handler(char *, int);
 
 void MX_TIM3_Init(void);
-
+void MX_TIM4_Init(void);
 /* USER CODE BEGIN Prototypes */
 /*Snow*/
-extern TIM_HandleTypeDef htim2;
+
 void MX_TIM2_Init(void);
 void PWM_SetDuty(TIM_HandleTypeDef *tim,uint32_t tim_channel,float duty);
 /* USER CODE END Prototypes */

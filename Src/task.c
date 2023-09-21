@@ -6,6 +6,7 @@
 #include "upper.h"
 #include "math.h"
 #define fly_wheel_rate_limit 55 //动量轮速度限幅
+#define dt 0.001f
 paramTypeDef param;
 enum bike_state b_s=BALANCE;
 extern imu_t imu;
@@ -23,13 +24,21 @@ int cnt_vel_set1;//飞轮速度发送计数
 int cnt_balance;//自行车平衡控制周期计数
 int cnt_servo;//舵机控制周期计数
 int cnt_zero;//动态零点调整周期计数
-int cnt_vel_set2;//后驱速度发送计数
-int cnt_vel_callback2;//后驱速度反馈计数
+int cnt_upper;
+int cnt_fra;
 
 float zero_det;//动态零点变化量
 float rate;//死区外飞轮速度
 float Set_steer;//舵机pid目标打角（PWM）
-int can_flag=0;
+int upper_flag=0;
+int in_flag=0;
+float start_yaw0;//开始积分时的偏航角
+float d_in_k=1.0f;//比例系数
+float det_x=0.0f,det_y=0.0f;//m
+
+//uint8_t buffff[5] = {0xa5,0x00,0x01,0x02,0x00^0x01^0x02};
+
+int Distance_integral();
 //定时器 2ms
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
@@ -38,12 +47,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		imu_get();//陀螺仪读取
 		
 		cnt_vel_set1++;
-
     cnt_balance++;	
 		cnt_zero++;
 		cnt_servo++;
-																																			 
-		if(cnt_servo>=5)//舵机控制周期 10ms
+		cnt_upper++;
+		
+		if(cnt_servo>=5)//舵机控制周期 50ms
 		{
 			
 			Steer_Target = Set_steer=Steer_Engine_control(delta_x_buf);	//舵机打角pid
@@ -52,34 +61,55 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			Steer_Target_Last = Steer_Target;	
 			cnt_servo=0;
 		}
+	 if(cnt_upper>=100)//发送舵机角度
+	 {
+			if(in_flag==1)
+			{
+				 odrive_vel_callback(1);
+				 if(Distance_integral()==1)
+				 {
+					 //  upper_send(Steer_Target,1);
+						 in_flag=0; 
+						 //back_center_send();
+				 }
+			}
+			cnt_upper=0;
+	   
+    }
+//	 
+//		
 		if(cnt_balance>=1	&& param.scope_flag == 1)//飞轮平衡控制周期 2ms
 		{
 			
 				balance();
 				cnt_balance=0;
 		}
-		if(cnt_vel_set1 >= 1)//odrive can通信周期 2ms   
-		{
-				odrive_speed_ctrl(0,odrive.set_speed0);
-				cnt_vel_callback1++;
+//		if(cnt_vel_set1 >= 10000)//odrive can通信周期 2ms   
+//		{
+//						
+//				cnt_vel_callback1++;
 			
-				cnt_vel_set1 = 0;
-				if(cnt_vel_callback1 == 2) 
-				{
-						cnt_vel_callback1 = 0;
-						cnt_vel_set2++;
-						odrive_vel_callback(0);
-				  	odrive_vel_callback(1);
-				}
+//				cnt_vel_set1 = 0;
+//				if(cnt_vel_callback1 == 2) 
+//				{
+//						cnt_vel_callback1 = 0;
+//					//	odrive_vel_callback(0);
+//				
+//				}
 			
-		}
+		//}
 		if(cnt_zero >=	200) //零点变化周期 400ms
 		{		
 			test_zero_pid();
 			cnt_zero = 0;
-			upper_send(Steer_Target);
+			
 		}
 		
+	}
+	else if(htim == &htim4)
+	{
+		cnt_vel_set1++;
+		odrive_speed_ctrl(0,odrive.set_speed0);
 	}
 }
 //并级pid之飞轮速度环
@@ -112,10 +142,37 @@ void test_zero_pid()
 	
 	if(odrive.set_speed0>2)rate=odrive.set_speed0-2;
 	else if(odrive.set_speed0<-2)rate=odrive.set_speed0+2;
-	zero_det = Zero_pid_Control(rate,param.fly_whell_speed_target);
+	zero_det = Zero_pid_Control(rate,0);
 	param.angular_zero += zero_det;
 }
+//路程积分函数
 
+int Distance_integral()
+{
+	static int state = 0;
+	switch(state)
+	{
+		case 0:
+		{
+			start_yaw0=imu.yaw;
+			state=1;
+			break;
+		}
+		case 1:
+		{
+			// det_x+=odrive.now_speed1*dt*d_in_k*sinf(imu.yaw-start_yaw0);
+			det_y+=odrive.now_speed1*dt*d_in_k*cosf(imu.yaw-start_yaw0);
+			if(det_y>=2)
+			{
+				state=0;
+				return 1;
+			}
+			break;
+	  }
+		default:break;
+	}
+	return 0;
+}
 //pid参数初始化
 void param_init(){
     param.angular_kp = -10.45;
@@ -143,17 +200,12 @@ void param_init(){
 		param.zero_accl_kd=0;
 	
     param.angular_zero = -2;
-		
-    param.fly_whell_speed_target = 0;
+
     param.scope_flag = 0;
 		
     param.Steer_Kp = 2;
-    param.Steer_Ki = 0.001;
+    param.Steer_Ki = 0;
     param.Steer_Kd = 0;
-		//暂时没用的舵机平衡pid
-    param.Balance_Kp = 0;
-    param.Balance_Ki = 0;
-    param.Balance_Kd = 0;
 
 }
 //角速度环pid
@@ -220,7 +272,7 @@ void balance(void)
     cnt1++;																																																	 // 速度控制周期
 
 																																																						 // 动量轮控制，串级
-    if(cnt1>=60){PWM_accel = Velocity_Control(odrive.now_speed0 , param.fly_whell_speed_target);cnt1=0;}     // 动量轮电机速度环正反馈 速度左正右负
+    if(cnt1>=60){PWM_accel = Velocity_Control(odrive.now_speed0 , 0);cnt1=0;}     // 动量轮电机速度环正反馈 速度左正右负
     if(cnt>=15){PWM_X = X_balance_Control(imu.rol,param.angular_zero+PWM_accel,imu.vx);cnt=0;}	 // 动量轮电机控制左右倾角param.angular_zero+  角度左负右正
     PWM_Final = Angle_Velocity(imu.vx,PWM_X);       																												 // 角速度环  角速度左负右正
     odrive.set_speed0 = PWM_Final;																																					 // 速度设置左正右负     

@@ -33,19 +33,16 @@ typedef struct
 	
     float angular_zero;             //角度零点
     float angular_target;           //目标角度
-    float fly_whell_speed_target;   //飞轮速期望
     float scope_flag;
 		
     float Steer_Kp;                 //舵机kp
     float Steer_Ki;                 //舵机ki
     float Steer_Kd;        					//舵机kd
 		
-    float Balance_Kp;               //舵机平衡kp
-    float Balance_Ki;               //舵机平衡ki
-    float Balance_Kd;               //舵机平衡kd
 }paramTypeDef;
 enum bike_state{BEGINE=0, BALANCE, SEND, RUN, STOP, END, LINE_END};
 extern enum bike_state b_s;
+
 int my_abs(int x);
 float my_fabs(float x);
 int SBB_Get_BalancePID(float Angle,float Gyro,float Pitch_Calculate);
