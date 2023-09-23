@@ -7,6 +7,7 @@
 #include "math.h"
 #define fly_wheel_rate_limit 55 //动量轮速度限幅
 #define dt 0.001f
+#define PI 3.1415926
 paramTypeDef param;
 enum bike_state b_s=BALANCE;
 extern imu_t imu;
@@ -25,7 +26,7 @@ int cnt_balance;//自行车平衡控制周期计数
 int cnt_servo;//舵机控制周期计数
 int cnt_zero;//动态零点调整周期计数
 int cnt_upper;
-int cnt_fra;
+int cnt_ci;//发送上位机
 
 float zero_det;//动态零点变化量
 float rate;//死区外飞轮速度
@@ -55,25 +56,31 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		{
 			
 			Steer_Target = Set_steer=Steer_Engine_control(delta_x_buf);	//舵机打角pid
-			Steer_Target = Steer_Speed_Limit(Steer_Target,Steer_Target_Last,1,15); 																 	 // 舵机打角限速31，防止打角太快，车摔倒
+			Steer_Target = Steer_Speed_Limit(Steer_Target,Steer_Target_Last,1,5); 																 	 // 舵机打角限速31，防止打角太快，车摔倒
 			servo_set_duty(Steer_Target);																																						 // 舵机控制
 			Steer_Target_Last = Steer_Target;	
 			cnt_servo=0;
 		}
-	 if(cnt_upper>=100)//发送舵机角度
+	 if(cnt_upper>=100)//发送积分完成
 	 {
 			if(in_flag==1)
 			{
 				 odrive_vel_callback(1);
 				 if(Distance_integral()==1)
 				 { 
-						 in_flag=0; 
+						 cnt_ci++;
 						 back_center_send();
+					 if(cnt_ci>=5)
+					 {
+					   in_flag=0;
+						 cnt_ci=0;
+						 det_x=det_y=0;
+					 }
 				 }
 			}
 			cnt_upper=0;
-	   
     }	
+	 
 		if(cnt_balance>=1	&& param.scope_flag == 1)//飞轮平衡控制周期 2ms
 		{
 			
@@ -94,7 +101,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 				}
 			
 }
-		if(cnt_zero >=	200) //零点变化周期 400ms
+		if(cnt_zero >=	150) //零点变化周期 400ms
 		{		
 			test_zero_pid();
 			cnt_zero = 0;
@@ -156,9 +163,9 @@ int Distance_integral()
 		}
 		case 1:
 		{
-			 det_x+=odrive.now_speed1*dt*d_in_k*sinf(imu.yaw-start_yaw0);
-			det_y+=odrive.now_speed1*dt*d_in_k*cosf(imu.yaw-start_yaw0);
-			if(det_y>=2)
+			det_x+=odrive.now_speed1*dt*d_in_k*sinf((imu.yaw-start_yaw0)/180*3.1415f);
+			det_y+=odrive.now_speed1*dt*d_in_k*cosf((imu.yaw-start_yaw0)/180*3.14159f);
+			if(det_y>=3)
 			{
 				state=0;
 				return 1;
@@ -183,7 +190,7 @@ void param_init(){
     param.fly_wheel_speed_ki = 0;
     param.fly_wheel_speed_kd = 0;
 	
-	  param.zero_speed_kp=0.0015;
+	  param.zero_speed_kp=0.0035;
 	  param.zero_speed_kd=0.001;
 	  param.zero_speed_ki=0;
 	  
@@ -195,7 +202,7 @@ void param_init(){
 		param.zero_accl_ki=0;
 		param.zero_accl_kd=0;
 	
-    param.angular_zero = 0;
+    param.angular_zero = -1.3;
 
     param.scope_flag = 0;
 		
