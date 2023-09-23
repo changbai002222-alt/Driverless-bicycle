@@ -33,12 +33,11 @@ float Set_steer;//舵机pid目标打角（PWM）
 int upper_flag=0;
 int in_flag=0;
 float start_yaw0;//开始积分时的偏航角
-float d_in_k=1.0f;//比例系数
+float d_in_k=59.0f;//比例系数
 float det_x=0.0f,det_y=0.0f;//m
 
-//uint8_t buffff[5] = {0xa5,0x00,0x01,0x02,0x00^0x01^0x02};
 
-int Distance_integral();
+int Distance_integral(void);
 //定时器 2ms
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
@@ -52,7 +51,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		cnt_servo++;
 		cnt_upper++;
 		
-		if(cnt_servo>=5)//舵机控制周期 50ms
+		if(cnt_servo>=5)//舵机控制周期 10ms
 		{
 			
 			Steer_Target = Set_steer=Steer_Engine_control(delta_x_buf);	//舵机打角pid
@@ -67,37 +66,34 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			{
 				 odrive_vel_callback(1);
 				 if(Distance_integral()==1)
-				 {
-					 //  upper_send(Steer_Target,1);
+				 { 
 						 in_flag=0; 
-						 //back_center_send();
+						 back_center_send();
 				 }
 			}
 			cnt_upper=0;
 	   
-    }
-//	 
-//		
+    }	
 		if(cnt_balance>=1	&& param.scope_flag == 1)//飞轮平衡控制周期 2ms
 		{
 			
 				balance();
 				cnt_balance=0;
 		}
-//		if(cnt_vel_set1 >= 10000)//odrive can通信周期 2ms   
-//		{
-//						
-//				cnt_vel_callback1++;
+		if(cnt_vel_set1 >= 1)//odrive can通信周期 2ms   
+		{
+						
+				cnt_vel_callback1++;
+		  	odrive_speed_ctrl(0,odrive.set_speed0);
+				
+				cnt_vel_set1 = 0;
+				if(cnt_vel_callback1 == 20) 
+				{
+						cnt_vel_callback1 = 0;
+				    odrive_speed_ctrl(1,odrive.set_speed1);
+				}
 			
-//				cnt_vel_set1 = 0;
-//				if(cnt_vel_callback1 == 2) 
-//				{
-//						cnt_vel_callback1 = 0;
-//					//	odrive_vel_callback(0);
-//				
-//				}
-			
-		//}
+}
 		if(cnt_zero >=	200) //零点变化周期 400ms
 		{		
 			test_zero_pid();
@@ -106,11 +102,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		}
 		
 	}
-	else if(htim == &htim4)
-	{
-		cnt_vel_set1++;
-		odrive_speed_ctrl(0,odrive.set_speed0);
-	}
+//	else if(htim == &htim4)
+//	{
+//		cnt_vel_set1++;
+//		
+//	}
 }
 //并级pid之飞轮速度环
 float Zero_pid_Control(int encoder,int target_encoder)
@@ -160,7 +156,7 @@ int Distance_integral()
 		}
 		case 1:
 		{
-			// det_x+=odrive.now_speed1*dt*d_in_k*sinf(imu.yaw-start_yaw0);
+			 det_x+=odrive.now_speed1*dt*d_in_k*sinf(imu.yaw-start_yaw0);
 			det_y+=odrive.now_speed1*dt*d_in_k*cosf(imu.yaw-start_yaw0);
 			if(det_y>=2)
 			{
@@ -199,7 +195,7 @@ void param_init(){
 		param.zero_accl_ki=0;
 		param.zero_accl_kd=0;
 	
-    param.angular_zero = -2;
+    param.angular_zero = 0;
 
     param.scope_flag = 0;
 		
