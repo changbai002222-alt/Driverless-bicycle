@@ -6,7 +6,7 @@
 #include "upper.h"
 #include "math.h"
 #define fly_wheel_rate_limit 55 //动量轮速度限幅
-#define dt 0.001f
+#define dt 0.002f
 #define PI 3.1415926
 paramTypeDef param;
 enum bike_state b_s=BALANCE;
@@ -34,7 +34,7 @@ float Set_steer;//舵机pid目标打角（PWM）
 int upper_flag=0;
 int in_flag=0;
 float start_yaw0;//开始积分时的偏航角
-float d_in_k=59.0f;//比例系数
+float d_in_k=0.15f;//比例系数
 float det_x=0.0f,det_y=0.0f;//m
 
 
@@ -61,13 +61,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			Steer_Target_Last = Steer_Target;	
 			cnt_servo=0;
 		}
-	 if(cnt_upper>=100)//发送积分完成
-	 {
 			if(in_flag==1)
 			{
-				 odrive_vel_callback(1);
+			
 				 if(Distance_integral()==1)
-				 { 
+					{ 
 						 cnt_ci++;
 						 back_center_send();
 					 if(cnt_ci>=5)
@@ -77,7 +75,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 						 det_x=det_y=0;
 					 }
 				 }
-			}
+			
 			cnt_upper=0;
     }	
 	 
@@ -101,7 +99,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 				}
 			
 }
-		if(cnt_zero >=	150) //零点变化周期 400ms
+		if(cnt_zero >=	200) //零点变化周期 400ms
 		{		
 			test_zero_pid();
 			cnt_zero = 0;
@@ -116,16 +114,29 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 //	}
 }
 //并级pid之飞轮速度环
+int k1[6]={1,2,4,5,4,2};
+int k2[6]={1,2,4,10,4,5};
 float Zero_pid_Control(int encoder,int target_encoder)
 {
 	float k0;
+	if(Steer_Target_Last==Steer_Target)//
 	{
 		//分段pid的p参数
-		if(my_abs(Steer_Target)<=10)k0=1;
-		else if(my_abs(Steer_Target)>10&&my_abs(Steer_Target)<=50)k0=8;
-		else if(my_abs(Steer_Target)>50&&my_abs(Steer_Target)<=100)k0=16;
-		else if(my_abs(Steer_Target)>100&&my_abs(Steer_Target)<=150)k0=20;
-		else if(my_abs(Steer_Target)>150) k0=24;
+		if(my_abs(Steer_Target)<=10)k0=k1[0];
+		else if(my_abs(Steer_Target)>10&&my_abs(Steer_Target)<=30)k0=k1[1];
+		else if(my_abs(Steer_Target)>30&&my_abs(Steer_Target)<=50)k0=k1[2];
+		else if(my_abs(Steer_Target)>50&&my_abs(Steer_Target)<=100)k0=k1[3];
+		else if(my_abs(Steer_Target)>100&&my_abs(Steer_Target)<=150)k0=k1[4];
+		else if(my_abs(Steer_Target)>150) k0=k1[5];
+	}
+	else 
+	{
+		if(my_abs(Steer_Target)<=10)k0=k2[0];
+		else if(my_abs(Steer_Target)>10&&my_abs(Steer_Target)<=30)k0=k2[1];
+		else if(my_abs(Steer_Target)>30&&my_abs(Steer_Target)<=50)k0=k2[2];
+		else if(my_abs(Steer_Target)>50&&my_abs(Steer_Target)<=100)k0=k2[3];
+		else if(my_abs(Steer_Target)>100&&my_abs(Steer_Target)<=150)k0=k2[4];
+		else if(my_abs(Steer_Target)>150) k0=k2[5];
 	}
     float encoder_bias,Velocity;
     static float encoder_integral,error,last_error;
@@ -182,7 +193,7 @@ void param_init(){
     param.angular_ki = 0;
     param.angular_kd = -5.8;
 	
-    param.angular_v_kp = -2;
+    param.angular_v_kp = -2.8;
     param.angular_v_ki = 0;
     param.angular_v_kd = -0.86;
 	
@@ -190,7 +201,7 @@ void param_init(){
     param.fly_wheel_speed_ki = 0;
     param.fly_wheel_speed_kd = 0;
 	
-	  param.zero_speed_kp=0.0035;
+	  param.zero_speed_kp=0.0025;
 	  param.zero_speed_kd=0.001;
 	  param.zero_speed_ki=0;
 	  
@@ -202,7 +213,7 @@ void param_init(){
 		param.zero_accl_ki=0;
 		param.zero_accl_kd=0;
 	
-    param.angular_zero = -1.3;
+    param.angular_zero = -0.5;
 
     param.scope_flag = 0;
 		
