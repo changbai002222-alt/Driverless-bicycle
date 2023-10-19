@@ -12,7 +12,6 @@ paramTypeDef param;
 enum bike_state b_s=BALANCE;
 extern imu_t imu;
 float PWM_X,PWM_accel,PWM_Final;// PWM中间量
-
 int Steer_Target=0;//舵机pid计算目标值
 int Steer_Target_Last=0;//舵机last值
 int Steer_Balance = 0;//舵机平衡目标值
@@ -34,10 +33,11 @@ float Set_steer;//舵机pid目标打角（PWM）
 int upper_flag=0;
 int in_flag=0;
 float start_yaw0;//开始积分时的偏航角
-float d_in_k=0.15f;//比例系数
+float d_in_k=0.025f;//比例系数
 float det_x=0.0f,det_y=0.0f;//m
-
-
+float fast_rate=10.0f,slow_rate=2.0f;
+int run_flag=0;
+float last_rate=0;
 int Distance_integral(void);
 //定时器 2ms
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
@@ -56,19 +56,19 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		{
 			
 			Steer_Target = Set_steer=Steer_Engine_control(delta_x_buf);	//舵机打角pid
-			Steer_Target = Steer_Speed_Limit(Steer_Target,Steer_Target_Last,1,5); 																 	 // 舵机打角限速31，防止打角太快，车摔倒
+			Steer_Target = Steer_Speed_Limit(Steer_Target,Steer_Target_Last,1,10); 																 	 // 舵机打角限速31，防止打角太快，车摔倒
 			servo_set_duty(Steer_Target);																																						 // 舵机控制
 			Steer_Target_Last = Steer_Target;	
 			cnt_servo=0;
 		}
-			if(in_flag==1)
-			{
+		if(in_flag==1)
+		{
 			
 				 if(Distance_integral()==1)
 					{ 
 						 cnt_ci++;
 						 back_center_send();
-					 if(cnt_ci>=5)
+					 if(cnt_ci>=5)//每次发送一个字节，一共发送五次
 					 {
 					   in_flag=0;
 						 cnt_ci=0;
@@ -81,7 +81,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	 
 		if(cnt_balance>=1	&& param.scope_flag == 1)//飞轮平衡控制周期 2ms
 		{
-			
 				balance();
 				cnt_balance=0;
 		}
@@ -98,7 +97,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 				    odrive_speed_ctrl(1,odrive.set_speed1);
 				}
 			
-}
+		}
 		if(cnt_zero >=	200) //零点变化周期 400ms
 		{		
 			test_zero_pid();
@@ -138,6 +137,16 @@ float Zero_pid_Control(int encoder,int target_encoder)
 		else if(my_abs(Steer_Target)>100&&my_abs(Steer_Target)<=150)k0=k2[4];
 		else if(my_abs(Steer_Target)>150) k0=k2[5];
 	}
+	if(run_flag==1)
+	{
+	if(my_abs(delta_x_buf)<=30.0f)odrive.set_speed1=fast_rate*0.05f+last_rate*0.95f;
+	else odrive.set_speed1=slow_rate*0.3f+last_rate*0.7f;
+		last_rate=odrive.set_speed1;
+	}
+	else
+	{
+		odrive.set_speed1=0;
+	}
     float encoder_bias,Velocity;
     static float encoder_integral,error,last_error;
     error=encoder_bias = encoder - target_encoder;
@@ -174,7 +183,7 @@ int Distance_integral()
 		}
 		case 1:
 		{
-			det_x+=odrive.now_speed1*dt*d_in_k*sinf((imu.yaw-start_yaw0)/180*3.1415f);
+			det_x+=odrive.now_speed1*dt*d_in_k*sinf((imu.yaw-start_yaw0)/180*3.14159f);
 			det_y+=odrive.now_speed1*dt*d_in_k*cosf((imu.yaw-start_yaw0)/180*3.14159f);
 			if(det_y>=3)
 			{
@@ -213,11 +222,11 @@ void param_init(){
 		param.zero_accl_ki=0;
 		param.zero_accl_kd=0;
 	
-    param.angular_zero = -0.5;
+    param.angular_zero = -1;
 
     param.scope_flag = 0;
 		
-    param.Steer_Kp = 2;
+    param.Steer_Kp = 3;
     param.Steer_Ki = 0;
     param.Steer_Kd = 0;
 
@@ -295,8 +304,13 @@ void balance(void)
     else if(odrive.set_speed0<-fly_wheel_rate_limit) odrive.set_speed0=-fly_wheel_rate_limit; 							 // 动量轮电机限幅
 		
 																																																						 // 摔倒停车判,断
-    if(b_s != END && ((imu.rol-(param.angular_zero))>3 || (imu.rol-(param.angular_zero))<-3))  b_s = STOP;
-    if(b_s == BEGINE || b_s == STOP || b_s == END)  {odrive.set_speed1= odrive.set_speed0 = 0;}
+    if((imu.rol-(param.angular_zero))>3 || (imu.rol-(param.angular_zero))<-3)
+		{
+			param.scope_flag=0;
+			odrive.set_speed0=odrive.set_speed1=0;
+			param.angular_zero=-1.1;
+			run_flag=0;
+		}    
     
 }
 

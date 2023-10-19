@@ -131,8 +131,7 @@ int main(void)
 
 		HAL_Delay(100);
 		
-		// odrive_speed_ctrl(1,odrive.set_speed1);
-		//odrive_speed_ctrl(0,1);
+	
   /* USER CODE BEGIN 3 */
 
   }
