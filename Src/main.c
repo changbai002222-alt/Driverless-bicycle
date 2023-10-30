@@ -41,7 +41,7 @@
 #include "stm32f4xx_hal.h"
 #include "can.h"
 #include "tim.h"
-
+#include "i2c.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -51,6 +51,8 @@
 #include "servo.h"
 #include "task.h"
 #include "upper.h"
+#include "oled.h"
+#include "key.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -69,7 +71,8 @@ void SystemClock_Config(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
-
+int key_flag = 0;
+int key_times = 0;
 /* USER CODE END 0 */
 
 /**
@@ -105,6 +108,8 @@ int main(void)
   MX_CAN2_Init();
   MX_TIM3_Init();
 	//MX_TIM4_Init();
+	
+  MX_I2C2_Init();
   MX_UART8_Init();
 	MX_UART7_Init();
   /* USER CODE BEGIN 2 */
@@ -120,7 +125,8 @@ int main(void)
 	//HAL_TIM_Base_Start_IT(&htim4);
 	//HAL_UART_Receive_IT(&huart2,(uint8_t*)buf,1);
   /* USER CODE END 2 */
-	
+	oled_init();
+	key_init();
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -129,9 +135,11 @@ int main(void)
   /* USER CODE END WHILE */
 // upper_send_data(buf1, 4);
 
-		HAL_Delay(100);
-		
-	
+		HAL_Delay(50);
+		oled_flush();
+		key_flag = Key_Scan();
+		if (key_flag == '1')
+			key_times ++;
   /* USER CODE BEGIN 3 */
 
   }

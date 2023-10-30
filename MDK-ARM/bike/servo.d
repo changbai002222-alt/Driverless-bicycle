@@ -5,7 +5,7 @@ bike\servo.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usart.h
 bike\servo.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
 bike\servo.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f427xx.h
 bike\servo.o: ../Drivers/CMSIS/Include/core_cm4.h
-bike\servo.o: D:\keil\ARM\ARMCC\Bin\..\include\stdint.h
+bike\servo.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
 bike\servo.o: ../Drivers/CMSIS/Include/core_cmInstr.h
 bike\servo.o: ../Drivers/CMSIS/Include/cmsis_armcc.h
 bike\servo.o: ../Drivers/CMSIS/Include/core_cmFunc.h
@@ -18,7 +18,7 @@ bike\servo.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h
 bike\servo.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_def.h
 bike\servo.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
 bike\servo.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
-bike\servo.o: D:\keil\ARM\ARMCC\Bin\..\include\stdio.h
+bike\servo.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
 bike\servo.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc_ex.h
 bike\servo.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio.h
 bike\servo.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio_ex.h
@@ -29,6 +29,8 @@ bike\servo.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_can.h
 bike\servo.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash.h
 bike\servo.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash_ex.h
 bike\servo.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash_ramfunc.h
+bike\servo.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_i2c.h
+bike\servo.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_i2c_ex.h
 bike\servo.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr.h
 bike\servo.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr_ex.h
 bike\servo.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h
