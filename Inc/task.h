@@ -42,9 +42,11 @@ typedef struct
 }paramTypeDef;
 enum bike_state{BEGINE=0, BALANCE, SEND, RUN, STOP, END, LINE_END};
 extern enum bike_state b_s;
-
+extern float distance;//»ý·Ö¾àÀë
+extern float st_yaw;
 int my_abs(int x);
 float my_fabs(float x);
+void rate_set(void);
 int SBB_Get_BalancePID(float Angle,float Gyro,float Pitch_Calculate);
 int Steer_Engine_control(float image_bias);
 void test_zero_pid(void);

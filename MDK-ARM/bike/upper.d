@@ -44,3 +44,5 @@ bike\upper.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_gpio.h
 bike\upper.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_dma.h
 bike\upper.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_exti.h
 bike\upper.o: ../Inc/usart.h
+bike\upper.o: ../Inc/task.h
+bike\upper.o: ../Inc/imu.h

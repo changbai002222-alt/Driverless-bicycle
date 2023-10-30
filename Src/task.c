@@ -7,7 +7,7 @@
 #include "math.h"
 #define fly_wheel_rate_limit 55 //动量轮速度限幅
 #define dt 0.002f
-#define PI 3.1415926
+#define PI 3.1415926f
 paramTypeDef param;
 enum bike_state b_s=BALANCE;
 extern imu_t imu;
@@ -24,9 +24,8 @@ int cnt_vel_set1;//飞轮速度发送计数
 int cnt_balance;//自行车平衡控制周期计数
 int cnt_servo;//舵机控制周期计数
 int cnt_zero;//动态零点调整周期计数
-int cnt_upper;
 int cnt_ci;//发送上位机
-
+int cnt_rate;
 float zero_det;//动态零点变化量
 float rate;//死区外飞轮速度
 float Set_steer;//舵机pid目标打角（PWM）
@@ -35,9 +34,11 @@ int in_flag=0;
 float start_yaw0;//开始积分时的偏航角
 float d_in_k=0.025f;//比例系数
 float det_x=0.0f,det_y=0.0f;//m
-float fast_rate=10.0f,slow_rate=2.0f;
-int run_flag=0;
-float last_rate=0;
+float fast_rate=8.0f,slow_rate=2.0f;
+int run_flag=0;//启动后轮标志位
+float last_rate=0;//记录上一时刻的速度
+float distance;//停车积分距离
+float st_yaw;//开始停车积分的yaw角度
 int Distance_integral(void);
 //定时器 2ms
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
@@ -50,11 +51,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     cnt_balance++;	
 		cnt_zero++;
 		cnt_servo++;
-		cnt_upper++;
-		
+
+		cnt_rate++;
+		if(cnt_rate>=20)
+		{
+			cnt_rate=0;
+			rate_set();//速度设置
+		}
 		if(cnt_servo>=5)//舵机控制周期 10ms
 		{
-			
+
 			Steer_Target = Set_steer=Steer_Engine_control(delta_x_buf);	//舵机打角pid
 			Steer_Target = Steer_Speed_Limit(Steer_Target,Steer_Target_Last,1,10); 																 	 // 舵机打角限速31，防止打角太快，车摔倒
 			servo_set_duty(Steer_Target);																																						 // 舵机控制
@@ -75,8 +81,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 						 det_x=det_y=0;
 					 }
 				 }
-			
-			cnt_upper=0;
+		
     }	
 	 
 		if(cnt_balance>=1	&& param.scope_flag == 1)//飞轮平衡控制周期 2ms
@@ -115,6 +120,35 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 //并级pid之飞轮速度环
 int k1[6]={1,2,4,5,4,2};
 int k2[6]={1,2,4,10,4,5};
+void rate_set()
+{
+	if(run_flag==1)//运行后轮
+	{
+		if(low_speed_flag==0)
+		{
+			if(my_abs(delta_x_buf)<=20.0f)odrive.set_speed1=fast_rate*0.01f+last_rate*0.99f;//加速
+			else if(my_abs(delta_x_buf)>20.0f)odrive.set_speed1=slow_rate*0.3f+last_rate*0.7f;
+		}
+		else if(low_speed_flag==1)//第一次遇到黄线减速
+		{
+			odrive.set_speed1=4*0.1f+last_rate*0.9f;
+		}
+		else if(low_speed_flag==2)//第二次开环
+		{
+		
+			distance+=odrive.now_speed1*dt*d_in_k*cosf((imu.yaw-st_yaw)/180*PI);
+			if(my_fabs(distance*100-error_y)<=15.0f)
+			{
+				run_flag=0;
+			}
+		}
+		last_rate=odrive.set_speed1;
+	}
+	else
+	{
+		odrive.set_speed1=0;
+	}
+}
 float Zero_pid_Control(int encoder,int target_encoder)
 {
 	float k0;
@@ -137,16 +171,7 @@ float Zero_pid_Control(int encoder,int target_encoder)
 		else if(my_abs(Steer_Target)>100&&my_abs(Steer_Target)<=150)k0=k2[4];
 		else if(my_abs(Steer_Target)>150) k0=k2[5];
 	}
-	if(run_flag==1)
-	{
-	if(my_abs(delta_x_buf)<=30.0f)odrive.set_speed1=fast_rate*0.05f+last_rate*0.95f;
-	else odrive.set_speed1=slow_rate*0.3f+last_rate*0.7f;
-		last_rate=odrive.set_speed1;
-	}
-	else
-	{
-		odrive.set_speed1=0;
-	}
+
     float encoder_bias,Velocity;
     static float encoder_integral,error,last_error;
     error=encoder_bias = encoder - target_encoder;
@@ -202,9 +227,9 @@ void param_init(){
     param.angular_ki = 0;
     param.angular_kd = -5.8;
 	
-    param.angular_v_kp = -2.8;
+    param.angular_v_kp = -3.5;
     param.angular_v_ki = 0;
-    param.angular_v_kd = -0.86;
+    param.angular_v_kd = -0.96;
 	
     param.fly_wheel_speed_kp = 0.68;
     param.fly_wheel_speed_ki = 0;
