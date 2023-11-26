@@ -1,9 +1,9 @@
 bike\ssd1306.o: ..\Src\ssd1306.c
-bike\ssd1306.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
+bike\ssd1306.o: D:\keil\ARM\ARMCC\Bin\..\include\math.h
 bike\ssd1306.o: ../Inc/ssd1306.h
 bike\ssd1306.o: ../Inc/ssd1306_defines.h
 bike\ssd1306.o: ../Inc/fonts.h
-bike\ssd1306.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+bike\ssd1306.o: D:\keil\ARM\ARMCC\Bin\..\include\stdint.h
 bike\ssd1306.o: ../Inc/main.h
 bike\ssd1306.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usart.h
 bike\ssd1306.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
@@ -21,7 +21,7 @@ bike\ssd1306.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h
 bike\ssd1306.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_def.h
 bike\ssd1306.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
 bike\ssd1306.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
-bike\ssd1306.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+bike\ssd1306.o: D:\keil\ARM\ARMCC\Bin\..\include\stdio.h
 bike\ssd1306.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc_ex.h
 bike\ssd1306.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio.h
 bike\ssd1306.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio_ex.h
@@ -48,5 +48,5 @@ bike\ssd1306.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_pwr.h
 bike\ssd1306.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_gpio.h
 bike\ssd1306.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_dma.h
 bike\ssd1306.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_exti.h
-bike\ssd1306.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
-bike\ssd1306.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
+bike\ssd1306.o: D:\keil\ARM\ARMCC\Bin\..\include\stdlib.h
+bike\ssd1306.o: D:\keil\ARM\ARMCC\Bin\..\include\string.h

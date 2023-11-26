@@ -2,7 +2,7 @@
   ******************************************************************************
   * File Name          : CAN.c
   * Description        : This file provides code for the configuration
-  *                      of the CAN instances.
+  *                      0of the CAN instances.
   ******************************************************************************
   ** This notice applies to any and all portions of this file
   * that are not between comment pairs USER CODE BEGIN and

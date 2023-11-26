@@ -22,31 +22,26 @@ typedef struct
 	  float zero_speed_kp;
     float zero_speed_ki;
     float zero_speed_kd;
-	  //零点舵机角度环
-	  float zero_steer_kp;
-		float zero_steer_ki;
-	  float zero_steer_kd;
-	  //零点后轮加速度环
-		float zero_accl_kp;
-		float zero_accl_ki;
-		float zero_accl_kd;
 	
     float angular_zero;             //角度零点
+		float zer0;
     float angular_target;           //目标角度
-    float scope_flag;
+		
+		int run_flag;
+    int scope_flag;
 		
     float Steer_Kp;                 //舵机kp
     float Steer_Ki;                 //舵机ki
     float Steer_Kd;        					//舵机kd
 		
 }paramTypeDef;
-enum bike_state{BEGINE=0, BALANCE, SEND, RUN, STOP, END, LINE_END};
-extern enum bike_state b_s;
+extern paramTypeDef param;
 extern float distance;//积分距离
-extern float st_yaw;
+
 int my_abs(int x);
 float my_fabs(float x);
 void rate_set(void);
+int Distance_integral(void);
 int SBB_Get_BalancePID(float Angle,float Gyro,float Pitch_Calculate);
 int Steer_Engine_control(float image_bias);
 void test_zero_pid(void);

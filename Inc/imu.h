@@ -21,4 +21,5 @@ typedef struct
 
 void imu_init(void);
 void imu_get(void);
+extern imu_t imu;
 #endif

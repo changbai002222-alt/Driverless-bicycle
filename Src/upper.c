@@ -46,11 +46,6 @@ void UART7_IRQHandler(void)
 			 {
 				 low_speed_flag=1;
 			 }
-			 else if(buf[0]==0x03)//第二个黄线，闭环
-			 {
-				 state=2;
-				 low_speed_flag=2;
-			 }
 			 else
 				 state = 0;
 			 head_buf = buf[0];
@@ -60,14 +55,7 @@ void UART7_IRQHandler(void)
 			 state = 3;
 			 break;
 		 case 3:
-			 if(head_buf==0x00)delta_x_buf = buf_temp[0] << 8 | buf[0];
-		   else if(head_buf==0x03)
-			 {
-				 cnttt++;
-				 distance=0;
-				 st_yaw=imu.yaw;
-				 error_y=buf_temp[0] << 8 | buf[0];
-			 }			 
+			 if(head_buf==0x00)delta_x_buf = buf_temp[0] << 8 | buf[0];	 
 			 state = 0;
 			 break;
 		 

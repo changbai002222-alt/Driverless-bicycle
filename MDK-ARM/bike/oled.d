@@ -5,7 +5,7 @@ bike\oled.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usart.h
 bike\oled.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
 bike\oled.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f427xx.h
 bike\oled.o: ../Drivers/CMSIS/Include/core_cm4.h
-bike\oled.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+bike\oled.o: D:\keil\ARM\ARMCC\Bin\..\include\stdint.h
 bike\oled.o: ../Drivers/CMSIS/Include/core_cmInstr.h
 bike\oled.o: ../Drivers/CMSIS/Include/cmsis_armcc.h
 bike\oled.o: ../Drivers/CMSIS/Include/core_cmFunc.h
@@ -18,7 +18,7 @@ bike\oled.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h
 bike\oled.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_def.h
 bike\oled.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
 bike\oled.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
-bike\oled.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+bike\oled.o: D:\keil\ARM\ARMCC\Bin\..\include\stdio.h
 bike\oled.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc_ex.h
 bike\oled.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio.h
 bike\oled.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio_ex.h
@@ -48,7 +48,7 @@ bike\oled.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_exti.h
 bike\oled.o: ../Inc/ssd1306.h
 bike\oled.o: ../Inc/ssd1306_defines.h
 bike\oled.o: ../Inc/fonts.h
-bike\oled.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
-bike\oled.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
+bike\oled.o: D:\keil\ARM\ARMCC\Bin\..\include\stdlib.h
+bike\oled.o: D:\keil\ARM\ARMCC\Bin\..\include\string.h
 bike\oled.o: ../Inc/imu.h
 bike\oled.o: ../Inc/odrive.h

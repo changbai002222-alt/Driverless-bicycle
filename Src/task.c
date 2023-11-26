@@ -5,18 +5,17 @@
 #include "servo.h"
 #include "upper.h"
 #include "math.h"
-#define fly_wheel_rate_limit 55 //动量轮速度限幅
-#define dt 0.002f
+
+#define fly_wheel_rate_limit 65 //动量轮速度限幅
+#define dt 0.100f
 #define PI 3.1415926f
 paramTypeDef param;
-enum bike_state b_s=BALANCE;
-extern imu_t imu;
 float PWM_X,PWM_accel,PWM_Final;// PWM中间量
 int Steer_Target=0;//舵机pid计算目标值
 int Steer_Target_Last=0;//舵机last值
 int Steer_Balance = 0;//舵机平衡目标值
 int Steer_Balance_Last = 0;//舵机平衡last值
-
+extern int key_times;
 int cnt;//角度环计数
 int cnt1;//速度环计数
 int cnt_vel_callback1;//飞轮速度反馈计数
@@ -24,22 +23,19 @@ int cnt_vel_set1;//飞轮速度发送计数
 int cnt_balance;//自行车平衡控制周期计数
 int cnt_servo;//舵机控制周期计数
 int cnt_zero;//动态零点调整周期计数
-int cnt_ci;//发送上位机
-int cnt_rate;
+int cnt_send;//发送上位机
+int cnt_rate;//速度设置计数
 float zero_det;//动态零点变化量
 float rate;//死区外飞轮速度
 float Set_steer;//舵机pid目标打角（PWM）
-int upper_flag=0;
-int in_flag=0;
+int in_flag=0;//避障开始积分
 float start_yaw0;//开始积分时的偏航角
-float d_in_k=0.025f;//比例系数
+float d_in_k=0.070;//积分比例系数，机械结构减速比
 float det_x=0.0f,det_y=0.0f;//m
-float fast_rate=8.0f,slow_rate=2.0f;
-int run_flag=0;//启动后轮标志位
+float fast_rate=8.0f,slow_rate=1.50f,mid_rate=5.0f;
 float last_rate=0;//记录上一时刻的速度
 float distance;//停车积分距离
-float st_yaw;//开始停车积分的yaw角度
-int Distance_integral(void);
+
 //定时器 2ms
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
@@ -51,9 +47,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     cnt_balance++;	
 		cnt_zero++;
 		cnt_servo++;
-
 		cnt_rate++;
-		if(cnt_rate>=20)
+		if(cnt_rate>=50)
 		{
 			cnt_rate=0;
 			rate_set();//速度设置
@@ -62,7 +57,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		{
 
 			Steer_Target = Set_steer=Steer_Engine_control(delta_x_buf);	//舵机打角pid
-			Steer_Target = Steer_Speed_Limit(Steer_Target,Steer_Target_Last,1,10); 																 	 // 舵机打角限速31，防止打角太快，车摔倒
+			Steer_Target = Steer_Speed_Limit(Steer_Target,Steer_Target_Last,1,3); 																 	 // 舵机打角限速31，防止打角太快，车摔倒
 			servo_set_duty(Steer_Target);																																						 // 舵机控制
 			Steer_Target_Last = Steer_Target;	
 			cnt_servo=0;
@@ -72,12 +67,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 			
 				 if(Distance_integral()==1)
 					{ 
-						 cnt_ci++;
+						 cnt_send++;
 						 back_center_send();
-					 if(cnt_ci>=5)//每次发送一个字节，一共发送五次
+					 if(cnt_send>=5)//每次发送一个字节，一共发送五次
 					 {
 					   in_flag=0;
-						 cnt_ci=0;
+						 cnt_send=0;
 						 det_x=det_y=0;
 					 }
 				 }
@@ -99,11 +94,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 				if(cnt_vel_callback1 == 20) 
 				{
 						cnt_vel_callback1 = 0;
-				    odrive_speed_ctrl(1,odrive.set_speed1);
+				    odrive_speed_ctrl(1,-odrive.set_speed1);
 				}
-			
 		}
-		if(cnt_zero >=	200) //零点变化周期 400ms
+		if(cnt_zero >=	10) //零点变化周期 40ms
 		{		
 			test_zero_pid();
 			cnt_zero = 0;
@@ -111,89 +105,95 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		}
 		
 	}
-//	else if(htim == &htim4)
-//	{
-//		cnt_vel_set1++;
-//		
-//	}
 }
-//并级pid之飞轮速度环
-int k1[6]={1,2,4,5,4,2};
-int k2[6]={1,2,4,10,4,5};
+/*
+函数名称：rate_set
+函数功能：分段设置速度
+*/
 void rate_set()
 {
-	if(run_flag==1)//运行后轮
+	if(param.run_flag==1)//运行后轮
 	{
-		if(low_speed_flag==0)
+		if(in_flag==1)
 		{
-			if(my_abs(delta_x_buf)<=20.0f)odrive.set_speed1=fast_rate*0.01f+last_rate*0.99f;//加速
-			else if(my_abs(delta_x_buf)>20.0f)odrive.set_speed1=slow_rate*0.3f+last_rate*0.7f;
+ 			  if(my_abs(delta_x_buf)<=15.0f)odrive.set_speed1=fast_rate*0.0005f+last_rate*0.9995f;//加速
+				else if(my_abs(delta_x_buf)>15.0f&&my_abs(delta_x_buf)<=30.0f)odrive.set_speed1=mid_rate*0.05f+last_rate*0.95f;
+				else if(my_abs(delta_x_buf)>30.0f)odrive.set_speed1=slow_rate*0.1f+last_rate*0.9f;
 		}
-		else if(low_speed_flag==1)//第一次遇到黄线减速
+		else
 		{
-			odrive.set_speed1=4*0.1f+last_rate*0.9f;
-		}
-		else if(low_speed_flag==2)//第二次开环
-		{
-		
-			distance+=odrive.now_speed1*dt*d_in_k*cosf((imu.yaw-st_yaw)/180*PI);
-			if(my_fabs(distance*100-error_y)<=15.0f)
+			
+			if(low_speed_flag==0)
 			{
-				run_flag=0;
+				if(my_abs(delta_x_buf)<=15.0f)odrive.set_speed1=fast_rate*0.05f+last_rate*0.95f;//加速
+				else if(my_abs(delta_x_buf)>15.0f&&my_abs(delta_x_buf)<=30.0f)odrive.set_speed1=mid_rate*0.01f+last_rate*0.99f;
+				else if(my_abs(delta_x_buf)>30.0f)odrive.set_speed1=slow_rate*0.08f+last_rate*0.92f;
+			}
+			else if(low_speed_flag==1)//第一次遇到黄线减速
+			{
+				odrive.set_speed1=1*0.1f+last_rate*0.9f;
+				distance-=odrive.now_speed1*dt*d_in_k;
+				if(my_fabs(distance)>=2.0f)
+				{
+					param.run_flag=0;
+				}
 			}
 		}
-		last_rate=odrive.set_speed1;
+		
 	}
 	else
 	{
 		odrive.set_speed1=0;
 	}
+	last_rate=odrive.set_speed1;
 }
-float Zero_pid_Control(int encoder,int target_encoder)
+/*
+函数名称：Zero_pid_Control
+函数功能：零点pid
+函数输入：encoder ：当前速度  target_encoder:目标速度
+函数返回：零点变化量
+*/
+   float encoder_integral=0;
+float Zero_pid_Control(float encoder,float target_encoder)
 {
-	float k0;
-	if(Steer_Target_Last==Steer_Target)//
-	{
-		//分段pid的p参数
-		if(my_abs(Steer_Target)<=10)k0=k1[0];
-		else if(my_abs(Steer_Target)>10&&my_abs(Steer_Target)<=30)k0=k1[1];
-		else if(my_abs(Steer_Target)>30&&my_abs(Steer_Target)<=50)k0=k1[2];
-		else if(my_abs(Steer_Target)>50&&my_abs(Steer_Target)<=100)k0=k1[3];
-		else if(my_abs(Steer_Target)>100&&my_abs(Steer_Target)<=150)k0=k1[4];
-		else if(my_abs(Steer_Target)>150) k0=k1[5];
-	}
-	else 
-	{
-		if(my_abs(Steer_Target)<=10)k0=k2[0];
-		else if(my_abs(Steer_Target)>10&&my_abs(Steer_Target)<=30)k0=k2[1];
-		else if(my_abs(Steer_Target)>30&&my_abs(Steer_Target)<=50)k0=k2[2];
-		else if(my_abs(Steer_Target)>50&&my_abs(Steer_Target)<=100)k0=k2[3];
-		else if(my_abs(Steer_Target)>100&&my_abs(Steer_Target)<=150)k0=k2[4];
-		else if(my_abs(Steer_Target)>150) k0=k2[5];
-	}
 
-    float encoder_bias,Velocity;
-    static float encoder_integral,error,last_error;
+    float encoder_bias,Velocity,rol_bais;
+    static float error,last_error,ll;
     error=encoder_bias = encoder - target_encoder;
-    encoder_integral += encoder_bias;
-    if(encoder_integral > +0.01) 
-			encoder_integral = +0.01;                 
-    if(encoder_integral < -0.01) 
-			encoder_integral = -0.01;                 
-    Velocity = encoder_bias *k0*(param.zero_speed_kp/10 )+ encoder_integral * param.zero_speed_ki+param.zero_speed_kd*(error-last_error);
+    encoder_integral = encoder_bias+last_error+ll;
+    if(encoder_integral > 1000) 
+			encoder_integral = 1000;                 
+    if(encoder_integral < -1000) 
+			encoder_integral = -1000;                 
+		rol_bais=imu.rol-param.angular_zero;
+		//分段pid
+		if(my_fabs(rol_bais)>=0.25f)
+			param.zero_speed_kp=0.01;
+		else 
+			param.zero_speed_kp=0.001;
+    Velocity =  rol_bais *(param.zero_speed_kp/10)+ encoder_integral/1000 * param.zero_speed_ki+param.zero_speed_kd*(error-last_error);
+		ll=last_error;
 		last_error=error;
+		
     return Velocity;
 }
-
+/*
+函数名称：test_zero_pid
+函数功能：改变动态零点
+*/
 void test_zero_pid()
 {
 	
-	if(odrive.set_speed0>2)rate=odrive.set_speed0-2;
-	else if(odrive.set_speed0<-2)rate=odrive.set_speed0+2;
+	if(odrive.set_speed0>0.5f)rate=odrive.set_speed0-0.5f;
+	else if(odrive.set_speed0<-0.5f)rate=odrive.set_speed0+0.5f;
 	zero_det = Zero_pid_Control(rate,0);
-	param.angular_zero += zero_det;
+	param.angular_zero =param.angular_zero+ zero_det;
 }
-//路程积分函数
+/*
+函数名称：Distance_integral（）
+函数功能：路程积分函数
+函数返回：积分完成返回1
+*/
 
 int Distance_integral()
 {
@@ -208,9 +208,9 @@ int Distance_integral()
 		}
 		case 1:
 		{
-			det_x+=odrive.now_speed1*dt*d_in_k*sinf((imu.yaw-start_yaw0)/180*3.14159f);
-			det_y+=odrive.now_speed1*dt*d_in_k*cosf((imu.yaw-start_yaw0)/180*3.14159f);
-			if(det_y>=3)
+			det_x+=(-odrive.now_speed1)*0.002f*d_in_k*sinf((imu.yaw-start_yaw0)/180*3.14159f);
+			det_y+=(-odrive.now_speed1)*0.002f*d_in_k*cosf((imu.yaw-start_yaw0)/180*3.14159f);
+			if(det_y>=2.0f)
 			{
 				state=0;
 				return 1;
@@ -223,35 +223,29 @@ int Distance_integral()
 }
 //pid参数初始化
 void param_init(){
-    param.angular_kp = -10.45;
+    param.angular_kp = -9.45;
     param.angular_ki = 0;
     param.angular_kd = -5.8;
 	
-    param.angular_v_kp = -3.5;
+    param.angular_v_kp = -2;
     param.angular_v_ki = 0;
-    param.angular_v_kd = -0.96;
+    param.angular_v_kd = -0.9;
 	
-    param.fly_wheel_speed_kp = 0.68;
+    param.fly_wheel_speed_kp = 0.9;
     param.fly_wheel_speed_ki = 0;
     param.fly_wheel_speed_kd = 0;
 	
-	  param.zero_speed_kp=0.0025;
-	  param.zero_speed_kd=0.001;
-	  param.zero_speed_ki=0;
+	  param.zero_speed_kp=0.009;
+	  param.zero_speed_kd=0;
+	  param.zero_speed_ki=0.01;
 	  
-		param.zero_steer_kp=0;
-		param.zero_steer_ki=0;
-	  param.zero_steer_kd=0;
-	
-		param.zero_accl_kp=0;
-		param.zero_accl_ki=0;
-		param.zero_accl_kd=0;
 	
     param.angular_zero = -1;
 
     param.scope_flag = 0;
+		param.run_flag=0;
 		
-    param.Steer_Kp = 3;
+    param.Steer_Kp = 2;
     param.Steer_Ki = 0;
     param.Steer_Kd = 0;
 
@@ -320,21 +314,22 @@ void balance(void)
     cnt1++;																																																	 // 速度控制周期
 
 																																																						 // 动量轮控制，串级
-    if(cnt1>=60){PWM_accel = Velocity_Control(odrive.now_speed0 , 0);cnt1=0;}     // 动量轮电机速度环正反馈 速度左正右负
+    if(cnt1>=70){PWM_accel = Velocity_Control(odrive.now_speed0 , 0);cnt1=0;}     // 动量轮电机速度环正反馈 速度左正右负
     if(cnt>=15){PWM_X = X_balance_Control(imu.rol,param.angular_zero+PWM_accel,imu.vx);cnt=0;}	 // 动量轮电机控制左右倾角param.angular_zero+  角度左负右正
     PWM_Final = Angle_Velocity(imu.vx,PWM_X);       																												 // 角速度环  角速度左负右正
     odrive.set_speed0 = PWM_Final;																																					 // 速度设置左正右负     
 			  																																																		 // 动量轮限幅
     if(odrive.set_speed0>fly_wheel_rate_limit) odrive.set_speed0=fly_wheel_rate_limit;      								 // 动量轮电机限幅
     else if(odrive.set_speed0<-fly_wheel_rate_limit) odrive.set_speed0=-fly_wheel_rate_limit; 							 // 动量轮电机限幅
-		
 																																																						 // 摔倒停车判,断
     if((imu.rol-(param.angular_zero))>3 || (imu.rol-(param.angular_zero))<-3)
 		{
 			param.scope_flag=0;
 			odrive.set_speed0=odrive.set_speed1=0;
-			param.angular_zero=-1.1;
-			run_flag=0;
+			param.run_flag=0;
+			key_times=0;
+			last_rate=0;
+			low_speed_flag=0;
 		}    
     
 }

@@ -5,7 +5,7 @@ bike\key.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usart.h
 bike\key.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
 bike\key.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f427xx.h
 bike\key.o: ../Drivers/CMSIS/Include/core_cm4.h
-bike\key.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+bike\key.o: D:\keil\ARM\ARMCC\Bin\..\include\stdint.h
 bike\key.o: ../Drivers/CMSIS/Include/core_cmInstr.h
 bike\key.o: ../Drivers/CMSIS/Include/cmsis_armcc.h
 bike\key.o: ../Drivers/CMSIS/Include/core_cmFunc.h
@@ -18,7 +18,7 @@ bike\key.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h
 bike\key.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_def.h
 bike\key.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
 bike\key.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
-bike\key.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+bike\key.o: D:\keil\ARM\ARMCC\Bin\..\include\stdio.h
 bike\key.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc_ex.h
 bike\key.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio.h
 bike\key.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio_ex.h

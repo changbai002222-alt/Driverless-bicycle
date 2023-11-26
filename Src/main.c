@@ -136,13 +136,30 @@ int main(void)
 // upper_send_data(buf1, 4);
 
 		HAL_Delay(50);
-		oled_flush();
-		key_flag = Key_Scan();
+		if(key_times<=1)//¹Ø±ÕÉ¨Ãè
+		{
+			oled_flush();
+			key_flag = Key_Scan();
+		}
 		if (key_flag == '1')
-			key_times ++;
-  /* USER CODE BEGIN 3 */
-
-  }
+		{
+			 key_times ++;
+			/* USER CODE BEGIN 3 */
+			 if(key_times==1)
+			 {
+				 if( param.scope_flag==0)
+				 {
+						param.angular_zero=param.zer0=imu.rol;
+						param.scope_flag=1;
+				 }
+				
+			 }
+			 else if(key_times==2)
+			 {
+				 param.run_flag=1;
+			 }
+		}
+	}
   /* USER CODE END 3 */
 
 }
