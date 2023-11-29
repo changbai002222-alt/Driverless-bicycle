@@ -91,7 +91,7 @@ int main(void)
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
 	
-  HAL_Init();
+   HAL_Init();
 
   /* USER CODE BEGIN Init */
 
@@ -125,7 +125,7 @@ int main(void)
 	//HAL_TIM_Base_Start_IT(&htim4);
 	//HAL_UART_Receive_IT(&huart2,(uint8_t*)buf,1);
   /* USER CODE END 2 */
-	oled_init();
+	//oled_init();
 	key_init();
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
@@ -138,7 +138,7 @@ int main(void)
 		HAL_Delay(50);
 		if(key_times<=1)//¹Ø±ÕÉ¨Ãè
 		{
-			oled_flush();
+		//	oled_flush();
 			key_flag = Key_Scan();
 		}
 		if (key_flag == '1')

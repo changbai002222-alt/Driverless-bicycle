@@ -15,6 +15,7 @@ uint8_t ii = 0;
 uint8_t low_speed_flag=0;
 uint8_t head_buf=0;//记录帧头
 uint8_t back_center_data[5] = {0xa5,0x01,0x01,0x00,0x01^0x01^0x00};
+extern float distance;
 void UART7_IRQHandler(void)
 {
  if(LL_USART_IsActiveFlag_RXNE(UART7) && LL_USART_IsEnabledIT_RXNE(UART7))
@@ -44,7 +45,19 @@ void UART7_IRQHandler(void)
 			 }
 			 else if(buf[0]==0x02)//第一个黄线，减速
 			 {
-				 low_speed_flag=1;
+				 if(low_speed_flag==0)
+				 {
+				  low_speed_flag=1;
+				 }
+				 else if(low_speed_flag==1&&distance>=1.0f)
+				 {
+					low_speed_flag=2;
+					 distance=0;
+				 }
+				 else if(low_speed_flag==1&&distance<=1.0f)
+				 {
+					low_speed_flag=1;
+				 }
 			 }
 			 else
 				 state = 0;
