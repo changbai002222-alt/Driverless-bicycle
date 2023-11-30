@@ -149,7 +149,7 @@ void rate_set()
 				}
 			}else if(low_speed_flag==2)
 			{
-				odrive.set_speed1=0.14f+last_rate*0.9f;
+				odrive.set_speed1=0.12f+last_rate*0.9f;
 				distance-=odrive.now_speed1*dt*d_in_k;
 				if(my_fabs(distance)>=0.5f)
 				{
