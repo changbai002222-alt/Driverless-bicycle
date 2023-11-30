@@ -5,12 +5,12 @@
 #include "servo.h"
 #include "upper.h"
 #include "math.h"
-#define  FS 2
+#define  FS 1
 
 #if FS==1
-	float fast_rate=8.5f,slow_rate=2.0f,mid_rate=5.0f;
+	float fast_rate=8.0f,slow_rate=2.0f,mid_rate=5.0f;
 #else  
-	float fast_rate=12.0f,slow_rate=4.0f,mid_rate=6.50f;
+	float fast_rate=12.0f,slow_rate=5.0f,mid_rate=6.50f;
 #endif
 
 #define fly_wheel_rate_limit 65 //动量轮速度限幅
@@ -119,13 +119,15 @@ void rate_set()
 	{
 		if(in_flag==1)//避障参数
 		{
-// 			  if(my_abs(delta_x_buf)<=15.0f)odrive.set_speed1=fast_rate*0.005f+last_rate*0.995f;//加速
-//				else if(my_abs(delta_x_buf)>15.0f&&my_abs(delta_x_buf)<=30.0f)odrive.set_speed1=mid_rate*0.05f+last_rate*0.95f;
-//				else if(my_abs(delta_x_buf)>30.0f)odrive.set_speed1=slow_rate*0.01f+last_rate*0.99f;
+			#if FS==1
+ 			  if(my_abs(delta_x_buf)<=15.0f)odrive.set_speed1=fast_rate*0.005f+last_rate*0.995f;//加速
+				else if(my_abs(delta_x_buf)>15.0f&&my_abs(delta_x_buf)<=30.0f)odrive.set_speed1=mid_rate*0.05f+last_rate*0.95f;
+				else if(my_abs(delta_x_buf)>30.0f)odrive.set_speed1=slow_rate*0.01f+last_rate*0.99f;
+			#else 
 			 if(my_abs(delta_x_buf)<=10.0f)odrive.set_speed1=fast_rate*0.005f+last_rate*0.995f;//加速
 				else if(my_abs(delta_x_buf)>10.0f&&my_abs(delta_x_buf)<=20.0f)odrive.set_speed1=mid_rate*0.05f+last_rate*0.95f;
-				else if(my_abs(delta_x_buf)>20.0f)odrive.set_speed1=slow_rate*0.07f+last_rate*0.93f;
-
+				else if(my_abs(delta_x_buf)>20.0f)odrive.set_speed1=slow_rate*0.05f+last_rate*0.95f;
+			#endif
 		}
 		else//直道和弯道参数
 		{		
@@ -147,7 +149,7 @@ void rate_set()
 				}
 			}else if(low_speed_flag==2)
 			{
-				odrive.set_speed1=0.15f+last_rate*0.9f;
+				odrive.set_speed1=0.14f+last_rate*0.9f;
 				distance-=odrive.now_speed1*dt*d_in_k;
 				if(my_fabs(distance)>=0.5f)
 				{
@@ -229,7 +231,12 @@ int Distance_integral()
 		{
 			det_x+=(-odrive.now_speed1)*0.002f*d_in_k*sinf((imu.yaw-start_yaw0)/180*3.14159f);
 			det_y+=(-odrive.now_speed1)*0.002f*d_in_k*cosf((imu.yaw-start_yaw0)/180*3.14159f);
-			if(det_y>=3.5f)//3.0
+			#if FS==1 
+			  int ds=3;
+			#else 
+			  float ds=3.5f;
+			#endif
+			if(det_y>=ds)//3.0
 			{
 				state=0;
 				return 1;
@@ -265,7 +272,7 @@ void param_init(){
 		param.run_flag=0;
 		
     param.Steer_Kp = 2.5;
-    param.Steer_Ki = 0.05;//预防死区
+    param.Steer_Ki = 0.5;//预防死区
     param.Steer_Kd = 0;
 
 }
@@ -319,10 +326,10 @@ int Steer_Engine_control(float image_bias)
     static float Last_image_bias;
     static float bias_intergral;
     bias_intergral += image_bias;
-    if (bias_intergral >= 20)
-        bias_intergral = 20;
-    if (bias_intergral <= -20)
-        bias_intergral = -20;
+    if (bias_intergral >= 10)
+        bias_intergral = 10;
+    if (bias_intergral <= -10)
+        bias_intergral = -10;
     steer_out = param.Steer_Kp * image_bias + param.Steer_Ki * bias_intergral + param.Steer_Kd * (image_bias - Last_image_bias);
     Last_image_bias = image_bias;
     return steer_out;
