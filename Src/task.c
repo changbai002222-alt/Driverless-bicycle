@@ -10,9 +10,9 @@
 #if FS==1
 	float fast_rate=8.0f,slow_rate=2.0f,mid_rate=5.0f;
 #else  
-	float fast_rate=12.0f,slow_rate=5.0f,mid_rate=6.50f;
+	float fast_rate=12.0f,slow_rate=4.0f,mid_rate=6.50f;
 #endif
-
+//0.9
 #define fly_wheel_rate_limit 65 //动量轮速度限幅
 #define dt 0.100f
 #define PI 3.1415926f
@@ -37,11 +37,11 @@ float rate;//死区外飞轮速度
 float Set_steer;//舵机pid目标打角（PWM）
 int in_flag=0;//避障开始积分
 float start_yaw0;//开始积分时的偏航角
-float d_in_k=0.070;//积分比例系数，机械结构减速比
+float d_in_k=0.077;//积分比例系数，机械结构减速比
 float det_x=0.0f,det_y=0.0f;//m
 float last_rate=0;//记录上一时刻的速度
 float distance;//停车积分距离
-float zer01=0.02;
+float zer01=0.01;
 float zer02=0.001;
 //定时器 2ms
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
@@ -64,7 +64,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 		{
 
 			Steer_Target = Set_steer=Steer_Engine_control(delta_x_buf);	//舵机打角pid
-			Steer_Target = Steer_Speed_Limit(Steer_Target,Steer_Target_Last,1,5); 
+			Steer_Target = Steer_Speed_Limit(Steer_Target,Steer_Target_Last,1,4); 
 			servo_set_duty(Steer_Target);																																						 // 舵机控制
 			Steer_Target_Last = Steer_Target;	
 			cnt_servo=0;
@@ -102,7 +102,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 				    odrive_speed_ctrl(1,-odrive.set_speed1);
 				}
 		}
-		if(cnt_zero >=	70) //零点变化周期 40ms
+		if(cnt_zero >=	100) //零点变化周期 40ms
 		{		
 			test_zero_pid();
 			cnt_zero = 0;		
@@ -124,9 +124,9 @@ void rate_set()
 				else if(my_abs(delta_x_buf)>15.0f&&my_abs(delta_x_buf)<=30.0f)odrive.set_speed1=mid_rate*0.05f+last_rate*0.95f;
 				else if(my_abs(delta_x_buf)>30.0f)odrive.set_speed1=slow_rate*0.01f+last_rate*0.99f;
 			#else 
-			 if(my_abs(delta_x_buf)<=10.0f)odrive.set_speed1=fast_rate*0.005f+last_rate*0.995f;//加速
+			 if(my_abs(delta_x_buf)<=10.0f)odrive.set_speed1=fast_rate*0.009f+last_rate*0.991f;//加速
 				else if(my_abs(delta_x_buf)>10.0f&&my_abs(delta_x_buf)<=20.0f)odrive.set_speed1=mid_rate*0.05f+last_rate*0.95f;
-				else if(my_abs(delta_x_buf)>20.0f)odrive.set_speed1=slow_rate*0.05f+last_rate*0.95f;
+				else if(my_abs(delta_x_buf)>20.0f)odrive.set_speed1=slow_rate*0.08f+last_rate*0.92f;
 			#endif
 		}
 		else//直道和弯道参数
@@ -257,7 +257,7 @@ void param_init(){
     param.angular_v_ki = 0;
     param.angular_v_kd = -0.985;
 	
-    param.fly_wheel_speed_kp = 0.99;
+    param.fly_wheel_speed_kp = 0.9;
     param.fly_wheel_speed_ki = 0;
     param.fly_wheel_speed_kd = 0;
 	
