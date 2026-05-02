@@ -1,51 +1,42 @@
 #include "servo.h"
-#define PWM_RESOLUTION 10000
-HAL_StatusTypeDef servo_status;
+#include "tim.h"
+#include "stm32f4xx_hal.h"
 
-#define Servo_Center_Mid 780                    //舵机直行中值
-#define Servo_Left_Max (Servo_Center_Mid + 200)  //舵机左转极限值
-#define Servo_Right_Min (Servo_Center_Mid - 200) //舵机右转极限值
-inline static void set_pwm_duty(float duty);
+// 兼容宏定义
+#ifndef PWM_SetDuty
+#define PWM_SetDuty(htim, channel, duty) __HAL_TIM_SET_COMPARE(htim, channel, duty)
+#endif
 
 void servo_init(void)
 {
-	MX_TIM2_Init(); //PWM OUTPUT
-	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3); //PA0
-	//servo_set_duty(0);
+    // 1. 补全硬件引脚配置（你 gpio.c 漏掉的部分）
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;       // 复用推挽输出
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF1_TIM2;    // 关联到 TIM2
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+    // 2. 开启定时器 PWM 通道
+    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1); 
+    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2); 
+    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3); // 对应你插的 U 位置
+    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4); 
+    
+    servo_set_duty(1500); // 初始中位
 }
 
-void servo_set_duty(int duty)
+void servo_set_duty(int pulse)
 {
-    int target = Servo_Center_Mid + duty;
-    target = target > Servo_Left_Max ? Servo_Left_Max : target;
-    target = target < Servo_Right_Min ? Servo_Right_Min : target;
-    float res = (float)target / 10000;
-    set_pwm_duty(res);
-}
-
-inline static void set_pwm_duty(float duty){
-	duty > 1 ? duty = PWM_RESOLUTION : duty;
-	duty < 0 ? duty = 0 : duty;
-//	__HAL_TIM_SetCompare(&htim2,TIM_CHANNEL_1,duty);
-//	PWM_SetDuty(&htim2,TIM_CHANNEL_1,duty); //PA 0
-//	PWM_SetDuty(&htim2,TIM_CHANNEL_2,duty); //PA 1
-	PWM_SetDuty(&htim2,TIM_CHANNEL_3,duty); //PA 2
-//	PWM_SetDuty(&htim2,TIM_CHANNEL_4,duty); //PA 3
-}
-//速度限幅
-int Steer_Speed_Limit(int now, int last, int limit, int times)
-{
-    static int cnt = 0;
-    cnt++;
-    if (cnt >= times)
-    {
-        cnt = 0;
-        if ((now - last) >= limit)
-            return (last + limit);
-        else if ((now - last) <= -limit)
-            return (last - limit);
-        else
-            return now;
-    }
-    return last;
+    // 安全限幅
+    if(pulse > 2500) pulse = 2500;
+    if(pulse < 500)  pulse = 500;
+    
+    // 直接操作寄存器，确保最高优先级写入
+    htim2.Instance->CCR1 = pulse;
+    htim2.Instance->CCR2 = pulse;
+    htim2.Instance->CCR3 = pulse; 
+    htim2.Instance->CCR4 = pulse;
 }

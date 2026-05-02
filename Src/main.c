@@ -1,39 +1,7 @@
-
 /**
   ******************************************************************************
   * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  ** This notice applies to any and all portions of this file
-  * that are not between comment pairs USER CODE BEGIN and
-  * USER CODE END. Other portions of this file, whether
-  * inserted by the user or by software development tools
-  * are owned by their respective copyright owners.
-  *
-  * COPYRIGHT(c) 2023 STMicroelectronics
-  *
-  * Redistribution and use in source and binary forms, with or without modification,
-  * are permitted provided that the following conditions are met:
-  *   1. Redistributions of source code must retain the above copyright notice,
-  *      this list of conditions and the following disclaimer.
-  *   2. Redistributions in binary form must reproduce the above copyright notice,
-  *      this list of conditions and the following disclaimer in the documentation
-  *      and/or other materials provided with the distribution.
-  *   3. Neither the name of STMicroelectronics nor the names of its contributors
-  *      may be used to endorse or promote products derived from this software
-  *      without specific prior written permission.
-  *
-  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-  *
+  * @brief          : Main program body (集成数据上报与零点校准)
   ******************************************************************************
   */
 /* Includes ------------------------------------------------------------------*/
@@ -47,18 +15,50 @@
 
 /* USER CODE BEGIN Includes */
 #include "odrive.h"
-#include "imu.h"
+#include "imu.h"     // 【关键】必须包含，才能识别 imu 结构体
 #include "servo.h"
 #include "task.h"
 #include "upper.h"
 #include "oled.h"
 #include "key.h"
+#include <string.h> 
+#include <stdio.h>   // 【关键】必须包含，用于 sprintf
+
+// 【关键】引入 LL 库的 USART 头文件
+#include "stm32f4xx_ll_usart.h" 
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-/* Private variables ---------------------------------------------------------*/
+int key_flag = 0;
+int key_times = 0;
+
+// ============================================================
+// 全局控制变量 (由 stm32f4xx_it.c 中的串口中断修改)
+// ============================================================
+volatile float Remote_Speed = 0.0f; 
+volatile float Remote_Steer = 0.0f;
+volatile float Roll_Zero    = 0.0f; // 【新增】零点校准偏移值，初始为0
+
+// ============================================================
+// 【外部变量引用】用于获取真实传感器数据
+// ============================================================
+// 1. 引用 imu.c 定义的结构体 (里面包含 rol, pit, yaw 等)
+extern imu_t imu; 
+
+// 2. 引用 odrive.c 定义的电机速度 (我们在 odrive.c 里刚加的)
+extern volatile float v_momentum;    
+extern volatile float v_rear_wheel;  
+
+// ============================================================
+// 【调试变量】
+// task.c 会自动检测：如果没有 Python 指令，就使用这个值控制舵机
+// ============================================================
+volatile int Debug_Servo_Pulse = 1500; 
+
+// 数据发送缓冲区
+char Tx_Buffer[128];
 
 /* USER CODE END PV */
 
@@ -66,122 +66,132 @@
 void SystemClock_Config(void);
 
 /* USER CODE BEGIN PFP */
-/* Private function prototypes -----------------------------------------------*/
-
+/**
+  * @brief  使用 LL 库发送字符串 (阻塞式发送，效率高)
+  */
+void LL_UART_SendString(USART_TypeDef *USARTx, char *str)
+{
+    while (*str)
+    {
+        while (!LL_USART_IsActiveFlag_TXE(USARTx)) {}
+        LL_USART_TransmitData8(USARTx, *str++);
+    }
+}
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
-int key_flag = 0;
-int key_times = 0;
 /* USER CODE END 0 */
 
 /**
-  * @brief  The application entry point.
-  *
+  * @brief  程序入口
   * @retval None
 */
-  
 int main(void)
-{
+{ 
   /* USER CODE BEGIN 1 */
-
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-	
-   HAL_Init();
+  /* 重置外设，初始化 Flash 和 Systick */
+  HAL_Init();
 
   /* USER CODE BEGIN Init */
-
   /* USER CODE END Init */
 
-  /* Configure the system clock */
+  /* 配置系统时钟 (168MHz) */
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
   /* USER CODE END SysInit */
 
-  /* Initialize all configured peripherals */
+  /* 初始化已配置的外设 */
   MX_GPIO_Init();
   MX_CAN2_Init();
-  MX_TIM3_Init();
-	//MX_TIM4_Init();
-	
+  MX_TIM3_Init();    // 2ms 控制中断定时器
+  MX_TIM2_Init();    // 舵机 PWM 定时器
   MX_I2C2_Init();
   MX_UART8_Init();
-	MX_UART7_Init();
+  MX_UART7_Init();
+  MX_USART6_UART_Init(); // 与电脑/工控机通信
+
   /* USER CODE BEGIN 2 */
-	
-	odrive_init();
-	
-	imu_init();
-	param_init();
-	LL_USART_EnableIT_RXNE(UART8);
-	LL_USART_EnableIT_RXNE(UART7);
-	servo_init();
-	HAL_TIM_Base_Start_IT(&htim3);
-	//HAL_TIM_Base_Start_IT(&htim4);
-	//HAL_UART_Receive_IT(&huart2,(uint8_t*)buf,1);
+    
+    // 1. 系统组件初始化
+    odrive_init();   // 初始化电机通信
+    imu_init();      // 初始化陀螺仪解码
+    param_init();    // 初始化 PID 参数
+    
+    // 2. 中断开启 (使用 LL 库开启，响应更快)
+    LL_USART_EnableIT_RXNE(UART8);  // 陀螺仪接收
+    LL_USART_EnableIT_RXNE(UART7);  // 遥控器接收 (如有)
+    LL_USART_EnableIT_RXNE(USART6); // 工控机指令接收 (包含零点校准)
+    
+    // 3. 舵机硬件开启
+    servo_init();
+    
+    // 4. 开启核心控制中断
+    HAL_TIM_Base_Start_IT(&htim3);
+    
+    HAL_Delay(1000); 
+    key_init();
+
   /* USER CODE END 2 */
-	//oled_init();
-	key_init();
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
   /* USER CODE END WHILE */
-// upper_send_data(buf1, 4);
 
-		HAL_Delay(50);
-		if(key_times<=1)//关闭扫描
-		{
-		//	oled_flush();
-			key_flag = Key_Scan();
-		}
-		if (key_flag == '1')
-		{
-			 key_times ++;
-			/* USER CODE BEGIN 3 */
-			 if(key_times==1)
-			 {
-				 if( param.scope_flag==0)
-				 {
-						param.angular_zero=param.zer0=imu.rol;
-						param.scope_flag=1;
-				 }
-				
-			 }
-			 else if(key_times==2)
-			 {
-				 param.run_flag=1;
-			 }
-		}
-	}
+  /* USER CODE BEGIN 3 */
+        
+        // ============================================================
+        // 数据上报逻辑 (每 50ms 发送一次)
+        // ============================================================
+        static uint32_t Last_Send = 0;
+        
+        // 使用非阻塞延时，不影响其他逻辑运行
+        if (HAL_GetTick() - Last_Send > 50) 
+        {
+            Last_Send = HAL_GetTick();
+
+            // ----------------------------------------------------
+            // 组包数据，格式: R:Roll角度,Z:零点,M:动量轮RPM,W:后轮RPM
+            // ----------------------------------------------------
+            // 注意：
+            // 1. imu.rol 是原始角度，减去 Roll_Zero 才是当前用于平衡的“净角度”
+            // 2. Roll_Zero 是当前设置的校准值
+            // 3. %.2f 保留两位小数, %.0f 只显示整数
+            // ----------------------------------------------------
+            
+            sprintf(Tx_Buffer, "R:%.2f,Z:%.2f,M:%.0f,W:%.0f\r\n", 
+                    imu.rol,   // 发送给工控机显示的实际姿态
+                    param.angular_zero,             // 发送当前的校准值，确认是否修改成功
+                    v_momentum,            // 动量轮速度
+                    v_rear_wheel           // 后轮速度
+                   );
+            
+            // 发送数据到工控机 (USART6)
+            LL_UART_SendString(USART6, Tx_Buffer);
+        }
+        
+  }
   /* USER CODE END 3 */
-
 }
 
 /**
-  * @brief System Clock Configuration
+  * @brief 系统时钟配置 (保持不变)
   * @retval None
   */
 void SystemClock_Config(void)
 {
-
   RCC_OscInitTypeDef RCC_OscInitStruct;
   RCC_ClkInitTypeDef RCC_ClkInitStruct;
 
-    /**Configure the main internal regulator output voltage
-    */
   __HAL_RCC_PWR_CLK_ENABLE();
-
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
-    /**Initializes the CPU, AHB and APB busses clocks
-    */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
@@ -195,8 +205,6 @@ void SystemClock_Config(void)
     _Error_Handler(__FILE__, __LINE__);
   }
 
-    /**Initializes the CPU, AHB and APB busses clocks
-    */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
   RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
@@ -209,61 +217,23 @@ void SystemClock_Config(void)
     _Error_Handler(__FILE__, __LINE__);
   }
 
-    /**Configure the Systick interrupt time
-    */
   HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);
-
-    /**Configure the Systick
-    */
   HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
-
-  /* SysTick_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
 }
 
 /* USER CODE BEGIN 4 */
-
 /* USER CODE END 4 */
 
-/**
-  * @brief  This function is executed in case of error occurrence.
-  * @param  file: The file name as string.
-  * @param  line: The line in file as a number.
-  * @retval None
-  */
 void _Error_Handler(char *file, int line)
 {
-  /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
   while(1)
   {
   }
-  /* USER CODE END Error_Handler_Debug */
 }
 
 #ifdef  USE_FULL_ASSERT
-/**
-  * @brief  Reports the name of the source file and the source line number
-  *         where the assert_param error has occurred.
-  * @param  file: pointer to the source file name
-  * @param  line: assert_param error line source number
-  * @retval None
-  */
 void assert_failed(uint8_t* file, uint32_t line)
 {
-  /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
-     tex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-  /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
-
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

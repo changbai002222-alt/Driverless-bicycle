@@ -3,48 +3,30 @@
   * @file    stm32f4xx_it.c
   * @brief   Interrupt Service Routines.
   ******************************************************************************
-  *
-  * COPYRIGHT(c) 2023 STMicroelectronics
-  *
-  * Redistribution and use in source and binary forms, with or without modification,
-  * are permitted provided that the following conditions are met:
-  *   1. Redistributions of source code must retain the above copyright notice,
-  *      this list of conditions and the following disclaimer.
-  *   2. Redistributions in binary form must reproduce the above copyright notice,
-  *      this list of conditions and the following disclaimer in the documentation
-  *      and/or other materials provided with the distribution.
-  *   3. Neither the name of STMicroelectronics nor the names of its contributors
-  *      may be used to endorse or promote products derived from this software
-  *      without specific prior written permission.
-  *
-  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-  *
-  ******************************************************************************
   */
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx.h"
 #include "stm32f4xx_it.h"
 
-/* USER CODE BEGIN 0 */
-
-/* USER CODE END 0 */
+// 【关键】引入 LL 库头文件 (用于高效操作串口)
+#include "stm32f4xx_ll_usart.h"
 
 /* External variables --------------------------------------------------------*/
 extern CAN_HandleTypeDef hcan2;
 extern TIM_HandleTypeDef htim3;
 extern TIM_HandleTypeDef htim4;
+extern UART_HandleTypeDef huart6; // 引用 UART6 句柄
+
+// ============================================================
+// 【全局变量引用】引入 main.c 中定义的控制变量
+// ============================================================
+extern volatile float Remote_Speed;   // 遥控速度
+extern volatile float Remote_Steer;   // 遥控转向
+extern volatile float Roll_Zero;      // 零点校准值
+
 /******************************************************************************/
-/*            Cortex-M4 Processor Interruption and Exception Handlers         */
+/* Cortex-M4 Processor Interruption and Exception Handlers         */
 /******************************************************************************/
 
 /**
@@ -52,12 +34,6 @@ extern TIM_HandleTypeDef htim4;
 */
 void NMI_Handler(void)
 {
-  /* USER CODE BEGIN NonMaskableInt_IRQn 0 */
-
-  /* USER CODE END NonMaskableInt_IRQn 0 */
-  /* USER CODE BEGIN NonMaskableInt_IRQn 1 */
-
-  /* USER CODE END NonMaskableInt_IRQn 1 */
 }
 
 /**
@@ -65,17 +41,9 @@ void NMI_Handler(void)
 */
 void HardFault_Handler(void)
 {
-  /* USER CODE BEGIN HardFault_IRQn 0 */
-
-  /* USER CODE END HardFault_IRQn 0 */
   while (1)
   {
-    /* USER CODE BEGIN W1_HardFault_IRQn 0 */
-    /* USER CODE END W1_HardFault_IRQn 0 */
   }
-  /* USER CODE BEGIN HardFault_IRQn 1 */
-
-  /* USER CODE END HardFault_IRQn 1 */
 }
 
 /**
@@ -83,17 +51,9 @@ void HardFault_Handler(void)
 */
 void MemManage_Handler(void)
 {
-  /* USER CODE BEGIN MemoryManagement_IRQn 0 */
-
-  /* USER CODE END MemoryManagement_IRQn 0 */
   while (1)
   {
-    /* USER CODE BEGIN W1_MemoryManagement_IRQn 0 */
-    /* USER CODE END W1_MemoryManagement_IRQn 0 */
   }
-  /* USER CODE BEGIN MemoryManagement_IRQn 1 */
-
-  /* USER CODE END MemoryManagement_IRQn 1 */
 }
 
 /**
@@ -101,17 +61,9 @@ void MemManage_Handler(void)
 */
 void BusFault_Handler(void)
 {
-  /* USER CODE BEGIN BusFault_IRQn 0 */
-
-  /* USER CODE END BusFault_IRQn 0 */
   while (1)
   {
-    /* USER CODE BEGIN W1_BusFault_IRQn 0 */
-    /* USER CODE END W1_BusFault_IRQn 0 */
   }
-  /* USER CODE BEGIN BusFault_IRQn 1 */
-
-  /* USER CODE END BusFault_IRQn 1 */
 }
 
 /**
@@ -119,17 +71,9 @@ void BusFault_Handler(void)
 */
 void UsageFault_Handler(void)
 {
-  /* USER CODE BEGIN UsageFault_IRQn 0 */
-
-  /* USER CODE END UsageFault_IRQn 0 */
   while (1)
   {
-    /* USER CODE BEGIN W1_UsageFault_IRQn 0 */
-    /* USER CODE END W1_UsageFault_IRQn 0 */
   }
-  /* USER CODE BEGIN UsageFault_IRQn 1 */
-
-  /* USER CODE END UsageFault_IRQn 1 */
 }
 
 /**
@@ -137,12 +81,6 @@ void UsageFault_Handler(void)
 */
 void SVC_Handler(void)
 {
-  /* USER CODE BEGIN SVCall_IRQn 0 */
-
-  /* USER CODE END SVCall_IRQn 0 */
-  /* USER CODE BEGIN SVCall_IRQn 1 */
-
-  /* USER CODE END SVCall_IRQn 1 */
 }
 
 /**
@@ -150,12 +88,6 @@ void SVC_Handler(void)
 */
 void DebugMon_Handler(void)
 {
-  /* USER CODE BEGIN DebugMonitor_IRQn 0 */
-
-  /* USER CODE END DebugMonitor_IRQn 0 */
-  /* USER CODE BEGIN DebugMonitor_IRQn 1 */
-
-  /* USER CODE END DebugMonitor_IRQn 1 */
 }
 
 /**
@@ -163,12 +95,6 @@ void DebugMon_Handler(void)
 */
 void PendSV_Handler(void)
 {
-  /* USER CODE BEGIN PendSV_IRQn 0 */
-
-  /* USER CODE END PendSV_IRQn 0 */
-  /* USER CODE BEGIN PendSV_IRQn 1 */
-
-  /* USER CODE END PendSV_IRQn 1 */
 }
 
 /**
@@ -176,21 +102,12 @@ void PendSV_Handler(void)
 */
 void SysTick_Handler(void)
 {
-  /* USER CODE BEGIN SysTick_IRQn 0 */
-
-  /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
   HAL_SYSTICK_IRQHandler();
-  /* USER CODE BEGIN SysTick_IRQn 1 */
-
-  /* USER CODE END SysTick_IRQn 1 */
 }
 
 /******************************************************************************/
 /* STM32F4xx Peripheral Interrupt Handlers                                    */
-/* Add here the Interrupt Handlers for the used peripherals.                  */
-/* For the available peripheral interrupt handler names,                      */
-/* please refer to the startup file (startup_stm32f4xx.s).                    */
 /******************************************************************************/
 
 /**
@@ -198,13 +115,7 @@ void SysTick_Handler(void)
 */
 void TIM3_IRQHandler(void)
 {
-  /* USER CODE BEGIN TIM3_IRQn 0 */
-
-  /* USER CODE END TIM3_IRQn 0 */
   HAL_TIM_IRQHandler(&htim3);
-  /* USER CODE BEGIN TIM3_IRQn 1 */
-
-  /* USER CODE END TIM3_IRQn 1 */
 }
 
 /**
@@ -212,13 +123,7 @@ void TIM3_IRQHandler(void)
 */
 void CAN2_RX0_IRQHandler(void)
 {
-  /* USER CODE BEGIN CAN2_RX0_IRQn 0 */
-
-  /* USER CODE END CAN2_RX0_IRQn 0 */
   HAL_CAN_IRQHandler(&hcan2);
-  /* USER CODE BEGIN CAN2_RX0_IRQn 1 */
-
-  /* USER CODE END CAN2_RX0_IRQn 1 */
 }
 
 /**
@@ -226,17 +131,77 @@ void CAN2_RX0_IRQHandler(void)
 */
 void TIM4_IRQHandler(void)
 {
-  /* USER CODE BEGIN TIM3_IRQn 0 */
-
-  /* USER CODE END TIM3_IRQn 0 */
   HAL_TIM_IRQHandler(&htim4);
-  /* USER CODE BEGIN TIM3_IRQn 1 */
-
-  /* USER CODE END TIM3_IRQn 1 */
 }
 
-
 /* USER CODE BEGIN 1 */
+
+// 静态变量，用于记录上一次收到的指令
+static uint8_t Last_Command = 0;
+
+/**
+  * @brief  USART6 global interrupt.
+  * @note   负责接收所有上位机指令
+  */
+void USART6_IRQHandler(void)
+{
+    // 检查 RXNE 标志 (接收寄存器非空)
+    if(LL_USART_IsActiveFlag_RXNE(USART6) && LL_USART_IsEnabledIT_RXNE(USART6))
+    {
+        uint8_t data = LL_USART_ReceiveData8(USART6);
+
+        // ============================================================
+        // 【核心修复】 智能去重逻辑
+        // 1. 如果是 '+' 或 '-' (调零点)，允许重复执行 (不做去重)，
+        //    这样你狂点按钮时，零点值就会不断累加/累减。
+        // 2. 其他指令 (如 'F' 前进)，如果按住不放，只执行一次，防止刷屏。
+        // ============================================================
+        if (data != '+' && data != '-' && data == Last_Command) 
+        {
+             return; // 重复指令，直接忽略
+        }
+        
+        Last_Command = data; // 更新上一条指令
+
+        switch(data)
+        {
+            // --- 运动控制 ---
+            case 'F': Remote_Speed = -0.7f; break; // 前进
+            case 'B': Remote_Speed = 0.7f;  break; // 后退
+
+            case 'L': Remote_Steer = -0.5f; break;   // 大左
+            case 'R': Remote_Steer = 0.5f;  break;   // 大右
+            case 'A': Remote_Steer = -0.167f; break; // 小左
+            case 'D': Remote_Steer = 0.167f;  break; // 小右
+
+            case 'S': // 【全停】速度、转向全归零
+                Remote_Speed = 0.0f;
+                Remote_Steer = 0.0f;
+                break;
+
+            case 'C': // 【仅回中】只归零转向，保持速度不变
+                Remote_Steer = 0.0f;
+                break;
+
+            // --- 零点校准 (现在可以无限连点了) ---
+            case '+': 
+                Roll_Zero += 0.05f; 
+                break;
+            
+            case '-': 
+                Roll_Zero -= 0.05f; 
+                break;
+            
+            default: break;
+        }
+    }
+    
+    // 清除错误标志 (防止 ORE 溢出错误导致中断卡死)
+    if (LL_USART_IsActiveFlag_ORE(USART6))
+    {
+        LL_USART_ClearFlag_ORE(USART6);
+    }
+}
 
 /* USER CODE END 1 */
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

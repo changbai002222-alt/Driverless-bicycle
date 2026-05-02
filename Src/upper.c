@@ -18,65 +18,6 @@ uint8_t back_center_data[5] = {0xa5,0x01,0x01,0x00,0x01^0x01^0x00};
 extern float distance;
 void UART7_IRQHandler(void)
 {
- if(LL_USART_IsActiveFlag_RXNE(UART7) && LL_USART_IsEnabledIT_RXNE(UART7))
-	{
-		buf[0]=LL_USART_ReceiveData8(UART7);
-		
-	  buf2[ii++] = buf[0];
-		if (ii == 4)
-			ii=0;
-	 switch(state)
-	 {
-		 case 0:
-			 if(buf[0] == FHead)
-			 {
-				state = 1;
-			 }
-			 break;
-		 case 1:
-			 if(buf[0] == 0x00)//舵机打角
-			 {
-			   state=2;
-				 
-			 }
-			 else if(buf[0] == 0x01)//积分完成
-			 {
-				 in_flag=1;
-			 }
-			 else if(buf[0]==0x02)//第一个黄线，减速
-			 {
-				 if(low_speed_flag==0)
-				 {
-				  low_speed_flag=1;
-				 }
-				 else if(low_speed_flag==1&&distance>=1.0f)
-				 {
-					low_speed_flag=2;
-					 distance=0;
-				 }
-				 else if(low_speed_flag==1&&distance<=1.0f)
-				 {
-					low_speed_flag=1;
-				 }
-			 }
-			 else
-				 state = 0;
-			 head_buf = buf[0];
-			 break;
-		 case 2:
-			 buf_temp[0] = buf[0];
-			 state = 3;
-			 break;
-		 case 3:
-			 if(head_buf==0x00)delta_x_buf = buf_temp[0] << 8 | buf[0];	 
-			 state = 0;
-			 break;
-		 
-		 default:
-			 break;
-	 }
-	 LL_USART_EnableIT_RXNE(UART7);
- }
 }
 
 void back_center_send(void)
