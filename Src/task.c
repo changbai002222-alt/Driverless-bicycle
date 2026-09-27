@@ -1,3 +1,36 @@
+/**
+  ******************************************************************************
+  * @file    task.c
+  * @brief   【核心】控制任务：时间片调度 + 平衡 + 转向 + 动态零点自校准
+  ******************************************************************************
+  * 【本文件在系统里的位置】
+  *   全部实时控制都从这里发出。入口是 HAL_TIM_PeriodElapsedCallback()，
+  *   它挂在 TIM3 上每 2ms 触发一次，再用计数器分频出四个频率：
+  *
+  *     2ms  (500Hz) : imu_get() + 动量轮控制   ← 平衡最吃实时性，慢了必倒
+  *     10ms (100Hz) : 后轮控制
+  *     20ms ( 50Hz) : rate_set()   速度 + 转向
+  *     40ms ( 25Hz) : balance()    平衡串级 PID
+  *
+  * 【平衡原理：动量轮（反作用轮）】
+  *   车身倾角 imu.rol
+  *     → X_balance_Control()  角度环（偏离零点 → 期望角速度）
+  *     → Angle_Velocity()     角速度环（用 imu.vx 做阻尼）
+  *     → odrive.set_speed0    动量轮转速指令
+  *   动量轮加速产生反作用力矩，把车身"推"回竖直。
+  *
+  * 【零点 param.angular_zero 的三个分量】(见 rate_set() 末尾)
+  *     BASE_ANGLE_ZERO      基础物理零点（装配时量的）
+  *   + 舵机偏转补偿          pwm_delta * COMPENSATE_K
+  *   + Roll_Zero            自动校准值（由 Auto_Calibrate_Zero 调出来）
+  *
+  * 【对外接口】
+  *   本文件提供 rate_set() / balance() / param_init() / my_fabs() 等；
+  *   读取 main.c 里的全局 Remote_Speed / Remote_Steer（由串口中断写入）。
+  *
+  * 【依赖】imu.c(姿态) · odrive.c(电机) · servo.c(舵机) · tim.c(定时器)
+  ******************************************************************************
+  */
 #include "task.h"
 #include "tim.h" 
 #include "imu.h"

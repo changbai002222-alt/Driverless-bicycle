@@ -1,3 +1,27 @@
+/**
+  ******************************************************************************
+  * @file    odrive.c
+  * @brief   ODrive 电机驱动：CAN2 收发 + 转速滤波
+  ******************************************************************************
+  * 【管哪两个电机】
+  *   AXIS0 (NODE 0) → 动量轮（平衡用）
+  *   AXIS1 (NODE 1) → 后轮  （驱动用）
+  *   对应全局变量： v_momentum / v_rear_wheel（单位 RPM，供 main.c 上报）
+  *
+  * 【怎么控制】
+  *   odrive_speed_ctrl(num, speed)  发 CAN 帧 MSG_SET_INPUT_VEL 设转速
+  *   odrive_vel_callback(num)       发【远程帧】请求编码器估计值
+  *   接收在 HAL_CAN_RxFifo0MsgPendingCallback() 里，只处理 CAN2。
+  *
+  * 【转速为什么是三取平均】
+  *   CAN 回传的瞬时转速抖动大，用 fliter_speed[3] 环形缓冲取平均，
+  *   相当于一个简单的滑动滤波 —— 便宜且有效。
+  *
+  * ⚠️【踩过的坑】CAN2 的过滤器 Bank 必须从 14 开始
+  *    STM32F4 的 CAN1/CAN2 共用过滤器组，CAN2 属于"从机"，
+  *    SlaveStartFilterBank 必须显式指定（见 odrive_canFilter_init）。
+  ******************************************************************************
+  */
 #include "odrive.h"
 #include "can.h"
 #include <string.h>
